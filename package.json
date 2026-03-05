@@ -16,6 +16,10 @@
     "openai": "^4.77.0"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leestott/local-rag.git"
+  },
   "keywords": [
     "rag",
     "offline-ai",

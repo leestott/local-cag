@@ -69,8 +69,8 @@ Before you begin, make sure you have:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/microsoft/LOCAL-RAG.git
-cd LOCAL-RAG
+git clone https://github.com/leestott/local-rag.git
+cd local-rag
 
 # 2. Install dependencies
 npm install

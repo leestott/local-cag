@@ -55,8 +55,8 @@ Foundry Local will auto-download the Phi-3.5 Mini model (~2 GB) the first time y
 ### Setup
 
 ```bash
-git clone https://github.com/microsoft/LOCAL-RAG.git
-cd LOCAL-RAG
+git clone https://github.com/leestott/local-rag.git
+cd local-rag
 npm install
 npm run ingest   # Index the 20 gas engineering documents
 npm start        # Start the server + Foundry Local
