@@ -124,31 +124,7 @@
       font-weight: 600;
     }
 
-    /* ── Sources ── */
-    .sources {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-    .sources summary {
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--accent);
-    }
-    .source-item {
-      padding: 4px 0;
-      display: flex;
-      justify-content: space-between;
-    }
-    .source-score {
-      background: #1a3a2a;
-      color: var(--success);
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 0.7rem;
-    }
+
 
     /* ── Typing indicator ── */
     .typing {
@@ -263,110 +239,7 @@
       color: var(--warning);
     }
 
-    /* ── Upload button ── */
-    #upload-btn {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: border-color 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #upload-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* ── Upload modal ── */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      width: 90%;
-      max-width: 520px;
-      max-height: 85vh;
-      overflow-y: auto;
-    }
-    .modal h2 {
-      margin: 0 0 16px;
-      font-size: 1.1rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .modal-close {
-      float: right;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 1.4rem;
-      cursor: pointer;
-    }
-    .modal-close:hover { color: var(--text); }
-    .drop-zone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 32px 16px;
-      text-align: center;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      margin-bottom: 16px;
-    }
-    .drop-zone.dragover {
-      border-color: var(--accent);
-      background: rgba(88,166,255,0.06);
-    }
-    .drop-zone .drop-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
-    .drop-zone input[type="file"] { display: none; }
-    .upload-status {
-      padding: 10px 14px;
-      border-radius: var(--radius);
-      margin-top: 12px;
-      font-size: 0.9rem;
-      display: none;
-    }
-    .upload-status.success { display: block; background: #1a3a2a; color: var(--success); }
-    .upload-status.error { display: block; background: #3a1a1a; color: var(--danger); }
-    .upload-status.loading { display: block; background: #3a2a1a; color: var(--warning); }
-    .doc-list {
-      margin-top: 16px;
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-    }
-    .doc-list summary {
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--accent);
-      font-size: 0.85rem;
-    }
-    .doc-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 0;
-      font-size: 0.82rem;
-      color: var(--text-muted);
-    }
-    .doc-item .doc-chunks {
-      background: #1a3a2a;
-      color: var(--success);
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 0.72rem;
-    }
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
@@ -383,9 +256,113 @@
       #input-area { padding: 8px 10px; }
       .modal { width: 95%; padding: 16px; }
     }
+
+    /* ── Loading overlay ── */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.4s;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 40px;
+      max-width: 480px;
+      width: 90%;
+      text-align: center;
+    }
+    .loading-card h2 {
+      margin: 0 0 8px;
+      font-size: 1.3rem;
+    }
+    .loading-card .subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin: 0 0 24px;
+    }
+    .progress-track {
+      background: var(--bg);
+      border-radius: 8px;
+      height: 18px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--success));
+      border-radius: 8px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-fill.indeterminate {
+      width: 30%;
+      animation: indeterminate 1.5s ease-in-out infinite;
+    }
+    @keyframes indeterminate {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    #loading-stage {
+      font-size: 0.95rem;
+      color: var(--text);
+      margin: 0 0 6px;
+      min-height: 1.4em;
+    }
+    #loading-detail {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 0;
+      min-height: 1.2em;
+    }
+    .loading-steps {
+      text-align: left;
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .loading-steps .step {
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .loading-steps .step.done { color: var(--success); }
+    .loading-steps .step.active { color: var(--text); font-weight: 600; }
+    .loading-steps .step .check { width: 16px; text-align: center; }
   </style>
 </head>
 <body>
+
+<div id="loading-overlay">
+  <div class="loading-card">
+    <h2>🔧 Gas Field Support Agent</h2>
+    <p class="subtitle">Preparing your offline AI assistant</p>
+    <div class="progress-track">
+      <div class="progress-fill indeterminate" id="progress-fill"></div>
+    </div>
+    <p id="loading-stage">Connecting to server...</p>
+    <p id="loading-detail"></p>
+    <div class="loading-steps">
+      <div class="step" id="step-context"><span class="check">○</span> Load domain documents</div>
+      <div class="step" id="step-sdk"><span class="check">○</span> Initialise Foundry Local</div>
+      <div class="step" id="step-select"><span class="check">○</span> Select best model for device</div>
+      <div class="step" id="step-download"><span class="check">○</span> Ensure model is available</div>
+      <div class="step" id="step-load"><span class="check">○</span> Load model into memory</div>
+    </div>
+  </div>
+</div>
 
 <header>
   <h1>
@@ -415,8 +392,8 @@
 <div id="chat">
   <div class="message agent">
     <strong>Gas Field Support Agent – Ready</strong><br>
-    Running locally on this device. No internet connection required.<br><br>
-    Ask me about:
+    Running locally on this device using Context-Aware Generation (CAG). No internet connection required.<br><br>
+    All domain knowledge is pre-loaded. Ask me about:
     <ul>
       <li>Gas leak detection &amp; safety procedures</li>
       <li>Fault diagnosis &amp; decision trees</li>
@@ -429,7 +406,6 @@
 </div>
 
 <div id="input-area">
-  <button id="upload-btn" title="Upload document to knowledge base">📄</button>
   <textarea
     id="user-input"
     placeholder="Describe the issue or ask a question..."
@@ -437,30 +413,6 @@
     autofocus
   ></textarea>
   <button id="send-btn">Send</button>
-</div>
-
-<!-- Upload Modal -->
-<div class="modal-overlay" id="upload-modal">
-  <div class="modal">
-    <button class="modal-close" id="upload-close">&times;</button>
-    <h2>📄 Upload Document</h2>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 16px;">
-      Add a <strong>.md</strong> or <strong>.txt</strong> file to the local knowledge base.
-      It will be chunked and indexed immediately.
-    </p>
-    <div class="drop-zone" id="drop-zone">
-      <span class="drop-icon">📁</span>
-      <span>Drop file here or <u>click to browse</u></span>
-      <input type="file" id="file-input" accept=".md,.txt">
-    </div>
-    <div class="upload-status" id="upload-status"></div>
-    <div class="doc-list" id="doc-list">
-      <details>
-        <summary>📚 Indexed Documents</summary>
-        <div id="doc-list-items">Loading…</div>
-      </details>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -472,122 +424,126 @@
   const compactToggle = document.getElementById('compact-mode');
   const quickBtns = document.querySelectorAll('.quick-btn');
 
+  // ── Loading overlay elements ──
+  const overlay = document.getElementById('loading-overlay');
+  const progressFill = document.getElementById('progress-fill');
+  const loadingStage = document.getElementById('loading-stage');
+  const loadingDetail = document.getElementById('loading-detail');
+
+  const steps = {
+    context: document.getElementById('step-context'),
+    sdk: document.getElementById('step-sdk'),
+    select: document.getElementById('step-select'),
+    download: document.getElementById('step-download'),
+    load: document.getElementById('step-load'),
+  };
+
+  // Map stages to step elements
+  const stageToStep = {
+    context: 'context',
+    sdk: 'sdk',
+    selecting: 'select',
+    selected: 'select',
+    downloading: 'download',
+    cached: 'download',
+    loading: 'load',
+    ready: null,
+  };
+
+  // Track which stages are complete
+  const completedStages = new Set();
+
+  function markStep(stepKey, state) {
+    const el = steps[stepKey];
+    if (!el) return;
+    const check = el.querySelector('.check');
+    if (state === 'done') {
+      el.classList.add('done');
+      el.classList.remove('active');
+      check.textContent = '✓';
+    } else if (state === 'active') {
+      el.classList.add('active');
+      el.classList.remove('done');
+      check.textContent = '▸';
+    }
+  }
+
+  function updateLoadingUI(data) {
+    loadingStage.textContent = data.message || '';
+
+    // Handle download progress bar
+    if (data.stage === 'downloading' && data.progress != null) {
+      progressFill.classList.remove('indeterminate');
+      progressFill.style.width = data.progress.toFixed(1) + '%';
+      loadingDetail.textContent = data.progress.toFixed(0) + '% complete';
+    } else if (data.stage === 'loading') {
+      progressFill.classList.add('indeterminate');
+      progressFill.style.width = '';
+      loadingDetail.textContent = 'This may take a moment for larger models';
+    } else if (data.stage === 'ready') {
+      progressFill.classList.remove('indeterminate');
+      progressFill.style.width = '100%';
+      loadingDetail.textContent = '';
+    } else {
+      loadingDetail.textContent = data.model ? 'Model: ' + data.model : '';
+    }
+
+    // Update step indicators
+    const currentStepKey = stageToStep[data.stage];
+
+    // Mark previous stages as done
+    const stageOrder = ['context', 'sdk', 'selecting', 'selected', 'downloading', 'cached', 'loading', 'ready'];
+    const currentIdx = stageOrder.indexOf(data.stage);
+    for (let i = 0; i < currentIdx; i++) {
+      const key = stageToStep[stageOrder[i]];
+      if (key) markStep(key, 'done');
+    }
+
+    // Mark current step active
+    if (currentStepKey) {
+      markStep(currentStepKey, 'active');
+    }
+
+    // On ready, mark all done and hide overlay
+    if (data.stage === 'ready') {
+      Object.keys(steps).forEach(k => markStep(k, 'done'));
+      statusEl.textContent = 'Offline Ready';
+      statusEl.className = 'status online';
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+      }, 800);
+    }
+  }
+
+  // ── Connect to SSE status endpoint ──
+  function connectStatus() {
+    statusEl.textContent = 'Loading...';
+    statusEl.className = 'status loading';
+
+    const evtSource = new EventSource('/api/status');
+
+    evtSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        updateLoadingUI(data);
+        if (data.stage === 'ready') {
+          evtSource.close();
+        }
+      } catch { /* ignore parse errors */ }
+    };
+
+    evtSource.onerror = () => {
+      // Server not yet up or connection lost — retry is automatic with EventSource
+      loadingStage.textContent = 'Waiting for server...';
+      statusEl.textContent = 'Connecting...';
+      statusEl.className = 'status loading';
+    };
+  }
+
+  connectStatus();
+
   let sending = false;
   let conversationHistory = [];
-
-  // ── Upload modal ──
-  const uploadBtn = document.getElementById('upload-btn');
-  const uploadModal = document.getElementById('upload-modal');
-  const uploadClose = document.getElementById('upload-close');
-  const dropZone = document.getElementById('drop-zone');
-  const fileInput = document.getElementById('file-input');
-  const uploadStatus = document.getElementById('upload-status');
-  const docListItems = document.getElementById('doc-list-items');
-
-  uploadBtn.addEventListener('click', () => {
-    uploadModal.classList.add('open');
-    loadDocList();
-  });
-  uploadClose.addEventListener('click', () => uploadModal.classList.remove('open'));
-  uploadModal.addEventListener('click', (e) => {
-    if (e.target === uploadModal) uploadModal.classList.remove('open');
-  });
-
-  // Drag & drop
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]);
-  });
-
-  async function handleFileUpload(file) {
-    const name = file.name;
-    if (!name.endsWith('.md') && !name.endsWith('.txt')) {
-      showUploadStatus('error', 'Only .md and .txt files are accepted.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      showUploadStatus('error', 'File too large (max 2 MB).');
-      return;
-    }
-
-    showUploadStatus('loading', 'Uploading and indexing…');
-
-    try {
-      const text = await file.text();
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': name },
-        body: new TextEncoder().encode(text)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showUploadStatus('error', data.error || 'Upload failed.');
-        return;
-      }
-      showUploadStatus('success',
-        `✓ ${data.filename} indexed — ${data.chunks} chunk(s). Total: ${data.totalChunks} chunks.`);
-      loadDocList();
-      // Notify in chat
-      addMessage('agent', `📄 **Document uploaded:** ${data.title} [${data.category}]\n${data.chunks} chunk(s) added to local knowledge base.`);
-    } catch (err) {
-      showUploadStatus('error', 'Upload failed. Is the server running?');
-    }
-    // Reset file input
-    fileInput.value = '';
-  }
-
-  function showUploadStatus(type, msg) {
-    uploadStatus.className = 'upload-status ' + type;
-    uploadStatus.textContent = msg;
-  }
-
-  async function loadDocList() {
-    try {
-      const res = await fetch('/api/docs');
-      const data = await res.json();
-      if (data.docs && data.docs.length > 0) {
-        docListItems.innerHTML = '';
-        for (const d of data.docs) {
-          const item = document.createElement('div');
-          item.className = 'doc-item';
-          const titleSpan = document.createElement('span');
-          titleSpan.textContent = `${d.title} [${d.category}]`;
-          const chunkSpan = document.createElement('span');
-          chunkSpan.className = 'doc-chunks';
-          chunkSpan.textContent = `${d.chunks} chunks`;
-          item.appendChild(titleSpan);
-          item.appendChild(chunkSpan);
-          docListItems.appendChild(item);
-        }
-      } else {
-        docListItems.textContent = 'No documents indexed.';
-      }
-    } catch {
-      docListItems.textContent = 'Could not load document list.';
-    }
-  }
-
-  // ── Health check ──
-  async function checkHealth() {
-    try {
-      const res = await fetch('/api/health');
-      if (res.ok) {
-        statusEl.textContent = 'Offline Ready';
-        statusEl.className = 'status online';
-      }
-    } catch {
-      statusEl.textContent = 'Disconnected';
-      statusEl.className = 'status offline';
-    }
-  }
-  checkHealth();
 
   // ── Auto-resize textarea ──
   input.addEventListener('input', () => {
@@ -645,35 +601,12 @@
   }
 
   // ── Add message to chat ──
-  function addMessage(role, content, sources) {
+  function addMessage(role, content) {
     const div = document.createElement('div');
     div.className = 'message ' + role;
 
     if (role === 'agent') {
       div.innerHTML = renderMarkdown(content);
-
-      if (sources && sources.length > 0) {
-        const srcDiv = document.createElement('div');
-        srcDiv.className = 'sources';
-        const details = document.createElement('details');
-        const summary = document.createElement('summary');
-        summary.textContent = `📚 Sources (${sources.length})`;
-        details.appendChild(summary);
-        for (const s of sources) {
-          const item = document.createElement('div');
-          item.className = 'source-item';
-          const titleSpan = document.createElement('span');
-          titleSpan.textContent = `${s.title} [${s.category}]`;
-          const scoreSpan = document.createElement('span');
-          scoreSpan.className = 'source-score';
-          scoreSpan.textContent = `${(s.score * 100).toFixed(0)}%`;
-          item.appendChild(titleSpan);
-          item.appendChild(scoreSpan);
-          details.appendChild(item);
-        }
-        srcDiv.appendChild(details);
-        div.appendChild(srcDiv);
-      }
     } else {
       div.textContent = content;
     }
@@ -736,7 +669,6 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let agentText = '';
-      let sources = [];
       let agentDiv = null;
 
       while (true) {
@@ -751,12 +683,10 @@
 
           try {
             const chunk = JSON.parse(payload);
-            if (chunk.type === 'sources') {
-              sources = chunk.data;
-            } else if (chunk.type === 'text') {
+            if (chunk.type === 'text') {
               agentText += chunk.data;
               if (!agentDiv) {
-                agentDiv = addMessage('agent', agentText, null);
+                agentDiv = addMessage('agent', agentText);
               } else {
                 agentDiv.innerHTML = renderMarkdown(agentText);
                 chat.scrollTop = chat.scrollHeight;
@@ -766,30 +696,6 @@
             }
           } catch { /* skip malformed chunk */ }
         }
-      }
-
-      // Append sources after streaming completes
-      if (agentDiv && sources.length > 0) {
-        const srcDiv = document.createElement('div');
-        srcDiv.className = 'sources';
-        const details = document.createElement('details');
-        const summary = document.createElement('summary');
-        summary.textContent = `📚 Sources (${sources.length})`;
-        details.appendChild(summary);
-        for (const s of sources) {
-          const item = document.createElement('div');
-          item.className = 'source-item';
-          const titleSpan = document.createElement('span');
-          titleSpan.textContent = `${s.title} [${s.category}]`;
-          const scoreSpan = document.createElement('span');
-          scoreSpan.className = 'source-score';
-          scoreSpan.textContent = `${(s.score * 100).toFixed(0)}%`;
-          item.appendChild(titleSpan);
-          item.appendChild(scoreSpan);
-          details.appendChild(item);
-        }
-        srcDiv.appendChild(details);
-        agentDiv.appendChild(srcDiv);
       }
 
       // Add to history

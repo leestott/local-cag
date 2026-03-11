@@ -1,27 +1,29 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-F7DF1E?logo=javascript&logoColor=000)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A5%2020-339933?logo=node.js&logoColor=fff)](https://nodejs.org/)
 [![Foundry Local](https://img.shields.io/badge/Foundry%20Local-On--Device%20AI-0078D4?logo=microsoft&logoColor=fff)](https://foundrylocal.ai)
-[![Phi-3.5 Mini](https://img.shields.io/badge/Model-Phi--3.5%20Mini%20Instruct-6B21A8)](https://huggingface.co/microsoft/Phi-3.5-mini-instruct)
+[![Foundry Local Models](https://img.shields.io/badge/Model-Auto--Selected-6B21A8)](https://foundrylocal.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Offline](https://img.shields.io/badge/Connectivity-100%25%20Offline-brightgreen)]()
 
-# Gas Field Local RAG – Offline Support Agent
+# Gas Field Local CAG: Offline Support Agent
 
-A fully offline, on-device **Retrieval-Augmented Generation (RAG)** support agent for gas field inspection and maintenance engineers. Built with **[Foundry Local](https://foundrylocal.ai)** and **Phi-3.5 Mini Instruct**, this sample shows you how to build a production-style RAG application that runs entirely on your machine — no cloud, no API keys, no internet required.
+A fully offline, on-device **Context-Augmented Generation (CAG)** support agent for gas field inspection and maintenance engineers. Built with **[Foundry Local](https://foundrylocal.ai)**, this sample shows you how to build a production-style CAG application that runs entirely on your machine, with no cloud, no API keys, and no internet required. The app **automatically selects the best model** for your device based on available system RAM.
 
-![Landing Page – Desktop](screenshots/01-landing-page.png)
+![Landing Page, Desktop](screenshots/01-landing-page.png)
 
-> **New to RAG?** Retrieval-Augmented Generation is a pattern where an AI model's answers are grounded in a specific set of documents. Instead of relying solely on what the model learned during training, RAG retrieves relevant chunks from your own documents and feeds them to the model as context. This dramatically reduces hallucination and makes the AI useful for domain-specific tasks.
+> **New to CAG?** Context-Augmented Generation is a pattern where all domain knowledge is pre-loaded into the model's context window at startup. Unlike RAG (Retrieval-Augmented Generation), which retrieves relevant chunks at query time, CAG injects the full knowledge base into the system prompt upfront. This eliminates the need for vector databases, embeddings, or retrieval pipelines, making the system simpler and faster whilst still grounding the model's answers in your documents.
+>
+> **Want to compare approaches?** See [local-rag](https://github.com/leestott/local-rag) for a RAG-based implementation of the same scenario using vector search and embeddings.
 
 ## What You'll Learn
 
 If you're a developer getting started with AI-powered applications, this project demonstrates:
 
-1. **How RAG works end-to-end** – document ingestion, chunking, vector storage, retrieval, and generation
+1. **How CAG works end-to-end**: document loading, context injection, and grounded generation
 2. **Running AI models locally** with [Foundry Local](https://foundrylocal.ai) (no GPU required, works on CPU/NPU)
 3. **Building a mobile-responsive web UI** that works in the field (large touch targets, high contrast, PWA-ready)
 4. **Streaming AI responses** using Server-Sent Events (SSE)
-5. **TF-IDF vector search** with SQLite — no external vector database needed
+5. **Zero-infrastructure AI**: no vector database, no embeddings, no retrieval pipeline
 
 ## Architecture
 
@@ -29,24 +31,26 @@ If you're a developer getting started with AI-powered applications, this project
 
 **How a query flows:**
 
-![RAG Query Flow](screenshots/08-rag-flow-sequence.png)
+![CAG Query Flow](screenshots/08-rag-flow-sequence.png)
 
-1. The user types a question in the browser
-2. The Express server receives it and searches the SQLite vector store for the most relevant document chunks
-3. Those chunks are injected into the prompt as context
-4. Foundry Local generates a response using Phi-3.5 Mini, grounded in the retrieved context
-5. The response streams back to the browser via SSE
+1. At startup, all 20 domain documents are loaded from `docs/` into memory and a document index is built
+2. The user types a question in the browser
+3. The Express server receives it and selects the top 3 most relevant documents using keyword scoring
+4. The chat engine builds a prompt containing the system instructions, the document index, the selected documents (~6K chars), and the user's question
+5. Foundry Local generates a response using the auto-selected model, grounded in the relevant context
+6. The response streams back to the browser token-by-token via SSE
 
 ## Features
 
-- **100% offline** – no internet, no cloud, no outbound calls
-- **Safety-first prompting** – safety warnings surface before any procedure
-- **RAG retrieval** – answers grounded in local gas engineering documents
-- **Streaming responses** – real-time SSE streaming to the UI
-- **Mobile responsive** – works on phones, tablets, and desktops in the field
-- **Edge/compact mode** – toggle for extreme latency / constrained devices
-- **Document upload** – add new `.md`/`.txt` documents from the UI at runtime
-- **Field-ready UI** – high contrast, large touch targets, works with gloves/PPE
+- **100% offline**: no internet, no cloud, no outbound calls
+- **Dynamic model selection**: automatically picks the best model for your device based on available RAM
+- **Visual startup progress**: loading overlay with progress bar and step-by-step status displayed in the browser whilst the model downloads and loads
+- **Safety-first prompting**: safety warnings surface before any procedure
+- **CAG context injection**: answers grounded in pre-loaded gas engineering documents
+- **Streaming responses**: real-time SSE streaming to the UI
+- **Mobile responsive**: works on phones, tablets, and desktops in the field
+- **Edge/compact mode**: toggle for extreme latency / constrained devices
+- **Field-ready UI**: high contrast, large touch targets, works with gloves/PPE
 
 | Desktop | Mobile |
 |---------|--------|
@@ -56,29 +60,26 @@ If you're a developer getting started with AI-powered applications, this project
 
 Before you begin, make sure you have:
 
-- **Node.js** ≥ 20 — [Download here](https://nodejs.org/)
-- **Foundry Local** — Microsoft's on-device AI runtime
+- **Node.js** ≥ 20: [Download here](https://nodejs.org/)
+- **Foundry Local**: Microsoft's on-device AI runtime
   ```
   winget install Microsoft.FoundryLocal
   ```
-- The **phi-3.5-mini** model (auto-downloaded on first run via the SDK — ~2 GB)
+- The best model is **auto-selected and auto-downloaded** on first run based on your device's RAM
 
-> **Tip:** Run `foundry model list` to check which models are already cached on your machine.
+> **Tip:** Run `foundry model list` to check which models are already cached on your machine. Set the `FOUNDRY_MODEL` environment variable to force a specific model alias (e.g. `FOUNDRY_MODEL=phi-3.5-mini npm start`).
 
 ## Quick Start
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/leestott/local-rag.git
-cd local-rag
+git clone https://github.com/leestott/local-cag.git
+cd local-cag
 
 # 2. Install dependencies
 npm install
 
-# 3. Ingest the 20 gas engineering documents into the local vector store
-npm run ingest
-
-# 4. Start the server (starts Foundry Local automatically)
+# 3. Start the server (loads documents and starts Foundry Local automatically)
 npm start
 ```
 
@@ -86,37 +87,32 @@ Open **http://127.0.0.1:3000** in a browser. You should see the landing page wit
 
 ### What Happens at Startup
 
-1. **`npm run ingest`** reads every `.md` file in `docs/`, splits them into overlapping chunks, computes TF-IDF vectors, and stores everything in `data/rag.db` (SQLite).
-2. **`npm start`** launches Foundry Local, loads the Phi-3.5 Mini model, opens the vector store, and starts the Express server on port 3000.
+1. The Express server starts immediately on port 3000 and begins serving the web UI.
+2. The browser connects to the `/api/status` SSE endpoint and displays a loading overlay with a progress bar.
+3. All `.md` files in `docs/` are read and parsed (including optional YAML front-matter for title, category, and ID).
+4. The documents are grouped by category and assembled into a structured domain context block.
+5. The model selector evaluates available system RAM and picks the best model from the Foundry Local catalogue (downloading it on first run if needed, with download progress streamed to the browser).
+6. Once the model is loaded, the overlay fades away and the chat interface becomes active.
+
+Chat endpoints return 503 whilst the model is loading, so the UI cannot send queries before the engine is ready. There is no ingestion step, no vector database, and no embedding pipeline. Documents are loaded into memory at startup and the most relevant ones are selected per query.
 
 ## Chatting with the Agent
 
-Type a question or tap one of the quick-action buttons. The agent retrieves relevant document chunks and generates a safety-first response:
+Type a question or tap one of the quick-action buttons. The agent uses the pre-loaded domain context to generate a safety-first response:
 
 ![Chat response with safety warnings and step-by-step guidance](screenshots/03-chat-response.png)
-
-Every response includes expandable source references so you can verify which documents the answer came from:
 
 ![Sources panel showing retrieved documents and relevance scores](screenshots/04-sources-panel.png)
 
 ### Mobile Chat
 
-The UI is fully responsive — the same interface works on mobile devices with appropriately sized touch targets:
+The UI is fully responsive: the same interface works on mobile devices with appropriately sized touch targets:
 
 ![Mobile chat view](screenshots/06-mobile-chat.png)
 
-## Uploading Documents
+## Adding Documents
 
-You can expand the knowledge base without restarting the server. Click the 📄 button to open the upload modal:
-
-![Upload document modal with indexed document list](screenshots/05-upload-document.png)
-
-Drag-and-drop or browse for `.md`/`.txt` files. They are chunked and indexed immediately.
-
-### Via File System
-
-1. Add `.md` files to the `docs/` folder (with optional YAML front-matter for title/category/id).
-2. Run `npm run ingest` to re-index all documents.
+To expand the knowledge base, add `.md` files to the `docs/` folder and restart the server. Documents are loaded at startup and injected into the system prompt.
 
 ### Document Format
 
@@ -140,8 +136,8 @@ id: DOC-CUSTOM-001
 ## Project Structure
 
 ```
-LOCAL-RAG/
-├── docs/                     # 20 gas engineering RAG documents
+LOCAL-CAG/
+├── docs/                     # 20 gas engineering domain documents
 │   ├── 01-gas-leak-detection.md
 │   ├── 02-regulator-fault-low-pressure.md
 │   ├── 03-emergency-shutdown.md
@@ -150,41 +146,37 @@ LOCAL-RAG/
 ├── public/
 │   └── index.html            # Field engineer web UI (single-file, no build step)
 ├── src/
-│   ├── chatEngine.js         # Foundry Local + RAG orchestration
-│   ├── chunker.js            # Document chunking + TF-IDF vector computation
-│   ├── config.js             # App configuration (model, paths, chunk sizes)
-│   ├── ingest.js             # Batch document ingestion script
+│   ├── chatEngine.js         # Foundry Local + CAG orchestration
+│   ├── config.js             # App configuration (paths, RAM budget)
+│   ├── context.js            # Document loading + context block construction
+│   ├── modelSelector.js      # Dynamic model selection based on device RAM
 │   ├── prompts.js            # System prompts (full + compact/edge)
-│   ├── server.js             # Express server + API endpoints
-│   └── vectorStore.js        # SQLite-backed local vector store
+│   └── server.js             # Express server, SSE status broadcast, API endpoints
 ├── screenshots/              # App screenshots
 ├── test/                     # Unit tests (Node.js test runner)
-├── data/                     # Generated at runtime
-│   └── rag.db                # SQLite vector database
 ├── package.json
 └── README.md
 ```
 
-## How the RAG Pipeline Works
+## How the CAG Pipeline Works
 
-Understanding each stage will help you adapt this pattern to your own projects:
+Understanding each stage will help you adapt this pattern to your own projects.
 
-### 1. Document Ingestion (`src/ingest.js`)
+### 1. Document Loading (`src/context.js`)
 
-Reads `.md` files from `docs/`, parses optional YAML front-matter, then splits the content into overlapping chunks (default: ~200 tokens with 25-token overlap). Each chunk is stored with its TF-IDF vector in SQLite.
+At startup, all `.md` files from `docs/` are read into memory. Optional YAML front-matter (title, category, ID) is parsed and used to organise the documents. A document index listing all available topics is also built so the model knows what knowledge is available.
 
-### 2. Vector Store (`src/vectorStore.js`)
+### 2. Query-Time Document Selection
 
-A lightweight vector store backed by SQLite (via `better-sqlite3`). Stores document chunks alongside their TF-IDF vectors. At query time, it cosine-similarity-ranks all chunks against the query vector and returns the top-K results.
+Rather than injecting all 20 documents into every prompt (which can exceed what smaller models handle efficiently on CPU), the engine selects the top 3 most relevant documents per query using keyword scoring. This reduces the context from ~41K chars to ~6K chars, enabling fast responses even on modest hardware. The full document index is always included so the model can reference any topic.
 
 ### 3. Chat Engine (`src/chatEngine.js`)
 
-Orchestrates the full RAG flow:
-- Converts the user's question into a TF-IDF vector
-- Retrieves the top-K most relevant chunks
-- Builds a prompt with the system instructions + retrieved context + user question
-- Sends it to the local Phi-3.5 Mini model via the OpenAI-compatible API
-- Streams the response back chunk-by-chunk
+Orchestrates the CAG flow:
+- Selects the most relevant documents for the user's query via `selectRelevantDocs()`
+- Builds a messages array with the system prompt, the document index, the selected context, conversation history, and the user's question
+- Sends it to the locally loaded model via the Foundry Local SDK (in-process, no HTTP round-trips)
+- Streams the response back token-by-token
 
 ### 4. System Prompts (`src/prompts.js`)
 
@@ -192,62 +184,33 @@ Two prompt variants:
 - **Full mode** (~300 tokens): detailed instructions for safety-first, structured responses
 - **Edge mode** (~80 tokens): minimal prompt for constrained devices with limited context windows
 
-## Chunking Strategy
+## CAG vs RAG: Why Context-Augmented Generation?
 
-The chunking approach is one of the most important design decisions in any RAG system — it directly affects retrieval accuracy, response quality, and performance. This project uses a **fixed-size sliding window with overlap**, and that choice is deliberate.
+This project uses CAG rather than RAG. Here is how they compare:
 
-### How It Works
+| Aspect | CAG (this project) | RAG |
+|--------|-------------------|-----|
+| **Context delivery** | All documents pre-loaded at startup; top 3 selected per query | Relevant chunks retrieved per query via vector similarity |
+| **Infrastructure** | No vector database, no embeddings, no chunking pipeline | Requires vector store, embedding model, chunking pipeline |
+| **Query latency** | No retrieval overhead; prompt is already assembled | Retrieval adds latency (embedding + similarity search) |
+| **Accuracy** | Model sees relevant documents plus a full topic index | Model sees only the top-K retrieved chunks |
+| **Scalability** | Limited by model context window size | Scales to large document collections |
+| **Complexity** | Minimal: just load files and inject into prompt | More moving parts: chunker, embedder, vector store, retriever |
 
-Documents are split into chunks of **~200 whitespace-delimited tokens** with a **25-token overlap** between consecutive chunks (configured in [`src/config.js`](src/config.js)). The core logic lives in [`src/chunker.js`](src/chunker.js):
+### When CAG Works Well
 
-1. YAML front-matter (title, category, id) is stripped and stored as metadata
-2. The body text is tokenized by whitespace
-3. A sliding window walks through the tokens, emitting one chunk per step
-4. Each new window starts 25 tokens before the previous one ended, creating overlap
-5. Documents shorter than 200 tokens are kept as a single chunk
+- **Small, curated document sets** (tens of documents, not thousands)
+- **Models with large context windows** (e.g. Phi-4 supports 16k tokens)
+- **Constrained environments** where simplicity and reliability matter more than scale
+- **Safety-critical domains** where the model should see all relevant information, not just the top-K results
 
-### Why Fixed-Size Sliding Window?
+### When to Consider Switching to RAG
 
-| Design constraint | How fixed-size chunking helps |
-|---|---|
-| **Small local model (Phi-3.5 Mini)** | 200-token chunks keep retrieved context compact, leaving room in the model's context window for the system prompt, conversation, and generated output |
-| **NPU/CPU execution** | No embedding model needed for chunking — just string operations. All compute budget stays with the LLM |
-| **Zero dependencies** | No tokenizer library, no embedding runtime, no vector database. Chunking is pure JavaScript |
-| **Predictable memory** | Every chunk is roughly the same size, so retrieval cost and context usage are consistent and predictable |
+- **Hundreds or thousands of documents** that exceed the model's context window
+- **Dynamic document collections** that change frequently and are too large to reload
+- **Precision-critical retrieval** where only the most relevant chunks should be included
 
-### Why Not Other Strategies?
-
-| Alternative | Trade-off |
-|---|---|
-| **Sentence-based** | Chunk sizes vary unpredictably; some safety procedures are single long sentences that wouldn't split well |
-| **Section-aware** (split on `##` headings) | Section lengths vary widely across the 20 docs — some would be too small (wasting retrieval slots), others too large for the model's context window |
-| **Recursive** (LangChain-style) | Better boundary handling, but adds complexity and dependencies for marginal gain on short documents |
-| **Semantic** (embedding-based topic detection) | Best retrieval quality, but requires a second model in memory alongside Phi-3.5 Mini — risky on constrained NPU/CPU hardware with 8–16 GB shared memory |
-
-### Performance Benefits
-
-**For the system:**
-- **~1ms retrieval** — TF-cosine similarity over fixed-size chunks is near-instant, compared to ~100–500ms if an embedding model had to encode each query
-- **Fast ingestion** — all 20 documents are chunked and indexed in under a second; no embedding computation required
-- **Single model in memory** — no embedding model competing with the LLM for limited NPU/RAM resources
-- **Minimal storage** — chunks stored as plain text in SQLite with lightweight TF-IDF vectors; no high-dimensional embedding arrays
-
-**For the end user:**
-- **Instant search results** — the retrieval step adds negligible latency, so the user only waits for the LLM to generate
-- **Higher-quality generation** — compact 200-token chunks mean the model receives focused, relevant context rather than large noisy blocks
-- **Consistent response times** — uniform chunk sizes mean retrieval and generation latency is predictable regardless of which documents are matched
-- **Works on modest hardware** — the lightweight pipeline runs on laptops and field devices without a dedicated GPU
-
-### When to Consider Switching
-
-If you adapt this project for larger or more complex document sets, consider upgrading the chunking strategy:
-
-- **Hundreds of long documents** → recursive or section-aware chunking to better respect document structure
-- **Embedding-based retrieval** → semantic chunking becomes worthwhile when paired with vector similarity search
-- **Mixed content types** (tables, code, prose) → format-aware chunking to keep logical units intact
-- **Higher precision requirements** → sentence-level chunking to avoid partial-match noise
-
-For the current use case — 20 short procedural guides on constrained local hardware — fixed-size sliding window delivers the best balance of simplicity, speed, and retrieval quality.
+For the current use case, 20 short procedural guides on constrained local hardware, CAG delivers the best balance of simplicity, reliability, and answer quality.
 
 ## API Endpoints
 
@@ -255,11 +218,11 @@ For the current use case — 20 short procedural guides on constrained local har
 |--------|----------|-------------|
 | `POST` | `/api/chat` | Non-streaming chat completion |
 | `POST` | `/api/chat/stream` | Streaming chat via SSE |
-| `POST` | `/api/upload` | Upload a document to the knowledge base |
-| `GET` | `/api/docs` | List indexed documents |
-| `GET` | `/api/health` | Health check |
+| `GET` | `/api/status` | SSE stream of initialisation progress (model download/load status) |
+| `GET` | `/api/context` | List pre-loaded context documents |
+| `GET` | `/api/health` | Health check (includes selected model and selection reason) |
 
-## RAG Document Categories
+## Domain Document Categories
 
 The 20 included documents cover:
 
@@ -278,38 +241,37 @@ Toggle **Edge Mode** in the UI header for constrained devices:
 | Setting | Full Mode | Edge Mode |
 |---------|-----------|-----------|
 | System prompt | ~300 tokens | ~80 tokens |
+| Context | Full document content | Safety warnings and key procedures only |
 | Max output tokens | 1024 | 512 |
-| Retrieved chunks | 5 | 3 |
 
 ## Key Concepts for New Developers
 
 ### What is Foundry Local?
 
-[Foundry Local](https://foundrylocal.ai) is Microsoft's on-device AI runtime. It lets you run small language models (SLMs) like Phi-3.5 Mini directly on your laptop or workstation — no GPU required, no cloud dependency. It exposes an **OpenAI-compatible API**, so you can use the standard `openai` npm package to interact with it.
+[Foundry Local](https://foundrylocal.ai) is Microsoft's on-device AI runtime. It lets you run small language models (SLMs) directly on your laptop or workstation, with no GPU required and no cloud dependency. The `foundry-local-sdk` npm package provides native bindings for direct in-process inference.
+
+This project uses dynamic model selection: the app queries the SDK catalogue at startup, checks system RAM, and picks the largest model that fits comfortably. You can override this by setting the `FOUNDRY_MODEL` environment variable.
 
 ```js
 import { FoundryLocalManager } from "foundry-local-sdk";
-import { OpenAI } from "openai";
 
-const manager = new FoundryLocalManager();
-const modelInfo = await manager.init("phi-3.5-mini");
-
-// Use the standard OpenAI client — just point it at the local endpoint
-const client = new OpenAI({
-  baseURL: manager.endpoint,  // e.g. "http://127.0.0.1:<dynamic-port>/v1"
-  apiKey: manager.apiKey,
-});
+const manager = FoundryLocalManager.create({ appName: "my-app" });
+// Auto-select the best model for this device
+const models = await manager.catalog.getModels();
+// ... or force a specific alias:
+const model = await manager.catalog.getModel("phi-3.5-mini");
+await model.load();
+const chatClient = model.createChatClient();
 ```
 
-### What is TF-IDF?
+### What is Context-Augmented Generation?
 
-TF-IDF (Term Frequency–Inverse Document Frequency) is a classic information retrieval technique. Each document chunk is converted into a numeric vector based on how important each word is within that chunk relative to all chunks. At query time, the user's question is vectorized the same way and compared against all stored vectors using cosine similarity.
+CAG is a pattern where domain knowledge is pre-loaded into memory and injected into the model's context window as part of the system prompt. In this implementation, all 20 documents are loaded at startup and the most relevant ones are selected per query using keyword scoring, keeping prompts small enough for efficient CPU inference. This approach is simpler than RAG because it requires no vector database, embeddings, or retrieval infrastructure.
 
-This project uses TF-IDF instead of embedding models to keep everything lightweight and offline — no embedding API or large model needed for retrieval.
+### CAG vs RAG at a Glance
 
-### Why SQLite for Vectors?
-
-For small-to-medium document collections (hundreds to low thousands of chunks), SQLite is fast enough for brute-force cosine similarity search and adds zero infrastructure. No need for Pinecone, Qdrant, or Chroma — just a single `.db` file on disk.
+- **CAG**: pre-load all documents at startup and select the most relevant ones per query. Simple, no infrastructure, limited by context window.
+- **RAG**: retrieve relevant chunks per query using vector similarity search. More complex, but scales to large document collections.
 
 ## Running Tests
 
@@ -317,27 +279,25 @@ For small-to-medium document collections (hundreds to low thousands of chunks), 
 npm test
 ```
 
-Tests use the built-in Node.js test runner (no extra dependencies). They cover the chunker, vector store, config, and server endpoints.
+Tests use the built-in Node.js test runner (no extra dependencies). They cover configuration and server endpoints.
 
 ## Scripts
 
 | Script | Command | Description |
 |--------|---------|-------------|
-| Ingest | `npm run ingest` | Chunk and index all docs into SQLite |
 | Start | `npm start` | Start the server (production) |
 | Dev | `npm run dev` | Start with auto-restart on file changes |
 | Test | `npm test` | Run unit tests |
 
 ## Adapting This for Your Own Use Case
 
-This project is a scenario sample — you can fork it and adapt it to any domain:
+This project is a scenario sample: you can fork it and adapt it to any domain:
 
 1. **Replace the documents** in `docs/` with your own `.md` files (product manuals, internal wikis, support articles)
 2. **Edit the system prompt** in `src/prompts.js` to match your domain and tone
-3. **Adjust chunk sizes** in `src/config.js` — smaller chunks for precise retrieval, larger for more context
-4. **Swap the model** — change `config.model` to any Foundry Local-supported model (run `foundry model list` to see available models)
-5. **Customise the UI** — the frontend is a single HTML file with inline CSS, easy to modify
+3. **Force a specific model**: set `FOUNDRY_MODEL=<alias>` as an environment variable, or leave it unset for automatic selection (run `foundry model list` to see available models)
+4. **Customise the UI**: the frontend is a single HTML file with inline CSS, easy to modify
 
 ## License
 
-MIT – This solution is a scenario sample for learning and experimentation.
+MIT: this solution is a scenario sample for learning and experimentation.

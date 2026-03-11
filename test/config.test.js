@@ -9,26 +9,25 @@ describe("config", () => {
     assert.equal(typeof config.model, "string");
   });
 
-  it("has valid RAG settings", () => {
-    assert.ok(config.chunkSize > 0, "chunkSize must be positive");
-    assert.ok(config.chunkOverlap >= 0, "chunkOverlap must be non-negative");
-    assert.ok(config.chunkOverlap < config.chunkSize, "overlap must be less than chunk size");
-    assert.ok(config.topK > 0, "topK must be positive");
-  });
-
   it("has valid server settings", () => {
     assert.ok(config.port > 0 && config.port < 65536, "port must be valid");
     assert.equal(config.host, "127.0.0.1", "host should be localhost");
   });
 
-  it("has docsDir and dbPath as absolute paths", () => {
+  it("has docsDir as an absolute path", () => {
     assert.ok(config.docsDir.includes("docs"), "docsDir should include 'docs'");
-    assert.ok(config.dbPath.includes("rag.db"), "dbPath should include 'rag.db'");
   });
 
   it("has publicDir defined", () => {
     assert.ok(config.publicDir, "publicDir must be defined");
     assert.ok(config.publicDir.includes("public"), "publicDir should include 'public'");
+  });
+
+  it("does not have RAG-specific settings", () => {
+    assert.equal(config.chunkSize, undefined, "chunkSize should not exist in CAG");
+    assert.equal(config.chunkOverlap, undefined, "chunkOverlap should not exist in CAG");
+    assert.equal(config.topK, undefined, "topK should not exist in CAG");
+    assert.equal(config.dbPath, undefined, "dbPath should not exist in CAG");
   });
 });
 

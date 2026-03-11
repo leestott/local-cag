@@ -1,55 +1,101 @@
 /**
- * Foundry Local chat engine.
- * Connects to the local Foundry service (dynamic port),
- * performs RAG retrieval, and generates responses.
+ * Foundry Local chat engine – Context-Aware Generation (CAG).
+ * Uses the Foundry Local SDK (native bindings) to run inference
+ * directly in-process, with no HTTP round-trips to a local server.
+ *
+ * Architecture: CAG injects the full domain knowledge base into the
+ * system prompt at startup. No vector search, no embeddings, no
+ * retrieval step at query time.
  */
-import { OpenAI } from "openai";
 import { FoundryLocalManager } from "foundry-local-sdk";
-import { VectorStore } from "./vectorStore.js";
 import { config } from "./config.js";
+import { selectBestModel } from "./modelSelector.js";
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_COMPACT } from "./prompts.js";
+import {
+  loadDocuments,
+  buildDomainContext,
+  buildCompactContext,
+  selectRelevantDocs,
+  buildSelectedContext,
+  buildDocumentIndex,
+  listDocuments,
+} from "./context.js";
 
 export class ChatEngine {
   constructor() {
-    this.openai = null;
-    this.modelId = null;
-    this.store = null;
+    this.chatClient = null;
+    this.modelAlias = null;
     this.compactMode = false;
+    this.docs = [];
+    this.domainContext = "";
+    this.compactContext = "";
+    this.docIndex = "";
   }
 
   /**
-   * Initialize the engine: start Foundry Local, load model, open vector store.
+   * Initialise the engine: load domain context, start Foundry Local, load model.
+   * @param {function} [onProgress] – callback receiving { stage, message, progress?, model? }
    */
-  async init() {
-    console.log("[ChatEngine] Initializing Foundry Local...");
+  async init(onProgress = () => {}) {
+    // 1. Pre-load all domain documents into memory
+    onProgress({ stage: "context", message: "Loading domain documents..." });
+    console.log("[ChatEngine] Loading domain context...");
+    this.docs = loadDocuments();
+    this.domainContext = buildDomainContext(this.docs);
+    this.compactContext = buildCompactContext(this.docs);
+    this.docIndex = buildDocumentIndex(this.docs);
+    console.log(
+      `[ChatEngine] Context loaded: ${this.docs.length} documents (${this.domainContext.length} chars).`
+    );
+    onProgress({ stage: "context", message: `Loaded ${this.docs.length} domain documents` });
 
-    // Start Foundry Local service and load model (handles dynamic port)
-    const manager = new FoundryLocalManager();
-    const modelInfo = await manager.init(config.model);
-    this.modelId = modelInfo.id;
+    // 2. Initialise Foundry Local SDK (native bindings, no CLI)
+    onProgress({ stage: "sdk", message: "Initialising Foundry Local SDK..." });
+    console.log("[ChatEngine] Initialising Foundry Local SDK...");
+    const manager = FoundryLocalManager.create({ appName: "gas-field-cag" });
 
-    console.log(`[ChatEngine] Model loaded: ${this.modelId}`);
-    console.log(`[ChatEngine] Endpoint: ${manager.endpoint}`);
-
-    // Create OpenAI client pointed at local Foundry service
-    this.openai = new OpenAI({
-      baseURL: manager.endpoint,
-      apiKey: manager.apiKey,
+    // 3. Select the best model for this device (or use the forced alias)
+    onProgress({ stage: "selecting", message: "Selecting best model for this device..." });
+    const { model, reason } = await selectBestModel(manager.catalog, {
+      forceModel: config.model || undefined,
+      ramBudgetPercent: config.ramBudgetPercent,
+      maxModelSizeMb: config.maxModelSizeMb,
     });
+    this.selectionReason = reason;
+    onProgress({ stage: "selected", message: `Selected model: ${model.alias}`, model: model.alias });
 
-    // Open the local vector store
-    this.store = new VectorStore(config.dbPath);
-    const count = this.store.count();
-    console.log(`[ChatEngine] Vector store ready: ${count} chunks indexed.`);
-
-    if (count === 0) {
-      console.warn("[ChatEngine] WARNING: No documents ingested. Run 'npm run ingest' first.");
+    // 4. Download model if not cached
+    if (!model.isCached) {
+      console.log(`[ChatEngine] Downloading model ${model.alias}...`);
+      onProgress({ stage: "downloading", message: `Downloading ${model.alias}...`, progress: 0, model: model.alias });
+      await model.download((progress) => {
+        process.stdout.write(`\r[ChatEngine] Download: ${progress.toFixed(0)}%`);
+        onProgress({ stage: "downloading", message: `Downloading ${model.alias}...`, progress, model: model.alias });
+      });
+      console.log("");
+    } else {
+      onProgress({ stage: "cached", message: `${model.alias} is already cached`, model: model.alias });
     }
+
+    // 5. Load model into memory
+    onProgress({ stage: "loading", message: `Loading ${model.alias} into memory...`, model: model.alias });
+    console.log(`[ChatEngine] Loading model ${model.alias} into memory...`);
+    await model.load();
+    this.modelAlias = model.alias;
+    console.log(`[ChatEngine] Model loaded: ${model.id} (${model.alias})`);
+
+    // 6. Create a ChatClient for direct in-process inference
+    this.chatClient = model.createChatClient();
+    this.chatClient.settings.temperature = 0.1;
+    console.log("[ChatEngine] ChatClient ready (in-process inference).");
+    onProgress({ stage: "ready", message: "Ready", model: model.alias });
   }
 
-  /** Expose the vector store for direct operations (e.g. upload ingestion). */
-  getStore() {
-    return this.store;
+  /**
+   * Get the list of loaded domain documents.
+   */
+  getDocuments() {
+    return listDocuments(this.docs);
   }
 
   /**
@@ -61,65 +107,58 @@ export class ChatEngine {
   }
 
   /**
-   * Retrieve relevant context from the local knowledge base.
+   * Build the messages array with pre-loaded context injection.
+   *
+   * Prompt structure:
+   *   System: role + behavioural rules
+   *   System: full domain context (pre-loaded, not retrieved)
+   *   ...conversation history...
+   *   User: question
    */
-  retrieve(query) {
-    const topK = this.compactMode ? Math.min(config.topK, 3) : config.topK;
-    return this.store.search(query, topK);
-  }
+  _buildMessages(userMessage, history = []) {
+    const systemPrompt = this.compactMode
+      ? SYSTEM_PROMPT_COMPACT
+      : SYSTEM_PROMPT;
 
-  /**
-   * Format retrieved chunks into a context block for the prompt.
-   */
-  _buildContext(chunks) {
-    if (chunks.length === 0) {
-      return "No relevant documents found in local knowledge base.";
-    }
+    // Select only the most relevant documents for this query
+    const relevant = selectRelevantDocs(
+      userMessage,
+      this.docs,
+      config.maxContextDocs,
+    );
+    const context = this.compactMode
+      ? buildCompactContext(relevant)
+      : buildSelectedContext(relevant);
 
-    return chunks
-      .map(
-        (c, i) =>
-          `--- Document ${i + 1}: ${c.title} [${c.category}] ---\n${c.content}`
-      )
-      .join("\n\n");
+    console.log(
+      `[ChatEngine] Query context: ${relevant.length} docs ` +
+      `(${context.length} chars) – ${relevant.map((d) => d.id).join(", ")}`,
+    );
+
+    return [
+      { role: "system", content: systemPrompt },
+      {
+        role: "system",
+        content:
+          `Available documents:\n${this.docIndex}\n\n` +
+          `Relevant documents for this query:\n\n${context}`,
+      },
+      ...history,
+      { role: "user", content: userMessage },
+    ];
   }
 
   /**
    * Generate a response for a user query (non-streaming).
    */
   async query(userMessage, history = []) {
-    // 1. Retrieve relevant chunks
-    const chunks = this.retrieve(userMessage);
-    const context = this._buildContext(chunks);
+    const messages = this._buildMessages(userMessage, history);
 
-    // 2. Build messages array
-    const systemPrompt = this.compactMode ? SYSTEM_PROMPT_COMPACT : SYSTEM_PROMPT;
-    const messages = [
-      { role: "system", content: systemPrompt },
-      {
-        role: "system",
-        content: `Retrieved context from local knowledge base:\n\n${context}`,
-      },
-      ...history,
-      { role: "user", content: userMessage },
-    ];
-
-    // 3. Call the local model
-    const response = await this.openai.chat.completions.create({
-      model: this.modelId,
-      messages,
-      temperature: 0.1,      // Low temperature for deterministic, safety-critical responses
-      max_tokens: this.compactMode ? 512 : 1024,
-    });
+    this.chatClient.settings.maxTokens = this.compactMode ? 512 : 1024;
+    const response = await this.chatClient.completeChat(messages);
 
     return {
       text: response.choices[0].message.content,
-      sources: chunks.map((c) => ({
-        title: c.title,
-        category: c.category,
-        docId: c.doc_id,
-        score: Math.round(c.score * 100) / 100,
-      })),
     };
   }
 
@@ -128,52 +167,46 @@ export class ChatEngine {
    * Returns an async iterable of text chunks.
    */
   async *queryStream(userMessage, history = []) {
-    // 1. Retrieve relevant chunks
-    const chunks = this.retrieve(userMessage);
-    const context = this._buildContext(chunks);
+    const messages = this._buildMessages(userMessage, history);
 
-    // 2. Build messages array
-    const systemPrompt = this.compactMode ? SYSTEM_PROMPT_COMPACT : SYSTEM_PROMPT;
-    const messages = [
-      { role: "system", content: systemPrompt },
-      {
-        role: "system",
-        content: `Retrieved context from local knowledge base:\n\n${context}`,
-      },
-      ...history,
-      { role: "user", content: userMessage },
-    ];
+    this.chatClient.settings.maxTokens = this.compactMode ? 512 : 1024;
 
-    // 3. Stream from the local model
-    const stream = await this.openai.chat.completions.create({
-      model: this.modelId,
-      messages,
-      temperature: 0.1,
-      max_tokens: this.compactMode ? 512 : 1024,
-      stream: true,
-    });
+    // Collect streamed chunks via callback and yield them
+    const chunks = [];
+    let resolve;
+    let done = false;
 
-    // Yield sources metadata first
-    yield {
-      type: "sources",
-      data: chunks.map((c) => ({
-        title: c.title,
-        category: c.category,
-        docId: c.doc_id,
-        score: Math.round(c.score * 100) / 100,
-      })),
-    };
+    const promise = this.chatClient
+      .completeStreamingChat(messages, (chunk) => {
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) {
+          chunks.push(content);
+          if (resolve) {
+            const r = resolve;
+            resolve = null;
+            r();
+          }
+        }
+      })
+      .then(() => {
+        done = true;
+        if (resolve) {
+          const r = resolve;
+          resolve = null;
+          r();
+        }
+      });
 
-    // Yield text chunks
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        yield { type: "text", data: content };
+    let index = 0;
+    while (!done || index < chunks.length) {
+      if (index < chunks.length) {
+        yield { type: "text", data: chunks[index++] };
+      } else {
+        await new Promise((r) => { resolve = r; });
       }
     }
-  }
 
-  close() {
-    if (this.store) this.store.close();
+    // Ensure the streaming promise settles
+    await promise;
   }
 }

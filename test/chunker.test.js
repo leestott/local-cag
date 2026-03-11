@@ -1,11 +1,17 @@
+/**
+ * Context module tests – CAG version.
+ *
+ * Tests the context loading, domain context building, and front-matter parsing
+ * functions that form the core of the CAG architecture.
+ */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseFrontMatter,
-  chunkText,
-  termFrequency,
-  cosineSimilarity,
-} from "../src/chunker.js";
+  buildDomainContext,
+  buildCompactContext,
+  listDocuments,
+} from "../src/context.js";
 
 // ── parseFrontMatter ──
 
@@ -49,102 +55,107 @@ Body text.`;
   });
 });
 
-// ── chunkText ──
+// ── buildDomainContext ──
 
-describe("chunkText", () => {
-  it("returns single chunk when text is shorter than maxTokens", () => {
-    const text = "short document with few words";
-    const chunks = chunkText(text, 400, 50);
-    assert.equal(chunks.length, 1);
-    assert.equal(chunks[0], text);
+describe("buildDomainContext", () => {
+  const sampleDocs = [
+    {
+      id: "DOC-SC-001",
+      title: "Emergency Shutdown",
+      category: "Safety & Compliance",
+      body: "Step 1: Activate ESD.\nStep 2: Evacuate.",
+    },
+    {
+      id: "DOC-IP-001",
+      title: "Gas Leak Detection",
+      category: "Inspection Procedures",
+      body: "Use portable gas detector.\nApply soapy water test.",
+    },
+    {
+      id: "DOC-SC-002",
+      title: "PPE Requirements",
+      category: "Safety & Compliance",
+      body: "Hard hat required.\nSteel-toe boots required.",
+    },
+  ];
+
+  it("groups documents by category", () => {
+    const context = buildDomainContext(sampleDocs);
+    assert.ok(context.includes("Safety & Compliance"));
+    assert.ok(context.includes("Inspection Procedures"));
   });
 
-  it("splits long text into overlapping chunks", () => {
-    const words = Array.from({ length: 100 }, (_, i) => `word${i}`);
-    const text = words.join(" ");
-    const chunks = chunkText(text, 30, 5);
+  it("includes all document titles and content", () => {
+    const context = buildDomainContext(sampleDocs);
+    assert.ok(context.includes("Emergency Shutdown"));
+    assert.ok(context.includes("Gas Leak Detection"));
+    assert.ok(context.includes("PPE Requirements"));
+    assert.ok(context.includes("Activate ESD"));
+    assert.ok(context.includes("soapy water"));
+  });
 
-    assert.ok(chunks.length > 1, "should produce multiple chunks");
-    // Each chunk (except possibly last) should have ≤ maxTokens words
-    for (const chunk of chunks) {
-      assert.ok(chunk.split(/\s+/).length <= 30);
+  it("returns empty string for empty docs array", () => {
+    const context = buildDomainContext([]);
+    assert.equal(context, "");
+  });
+});
+
+// ── buildCompactContext ──
+
+describe("buildCompactContext", () => {
+  const sampleDocs = [
+    {
+      id: "DOC-SC-001",
+      title: "Emergency Shutdown",
+      category: "Safety & Compliance",
+      body: "## Safety Warnings\n⚠️ DANGER: High pressure.\n\n## Procedure\n1. Activate ESD.\n2. Evacuate.\n\n## References\nSee manual.",
+    },
+    {
+      id: "DOC-IP-001",
+      title: "Gas Leak Detection",
+      category: "Inspection Procedures",
+      body: "## Overview\nDetect gas leaks early.\n\n## Procedure\n1. Use detector.\n2. Apply soapy water.",
+    },
+  ];
+
+  it("returns a non-empty string", () => {
+    const compact = buildCompactContext(sampleDocs);
+    assert.ok(compact.length > 0);
+  });
+
+  it("is shorter than full domain context", () => {
+    const full = buildDomainContext(sampleDocs);
+    const compact = buildCompactContext(sampleDocs);
+    assert.ok(compact.length <= full.length, "compact context should be shorter or equal");
+  });
+});
+
+// ── listDocuments ──
+
+describe("listDocuments", () => {
+  const sampleDocs = [
+    { id: "DOC-1", title: "Doc One", category: "Cat A", body: "Content one." },
+    { id: "DOC-2", title: "Doc Two", category: "Cat B", body: "Content two here." },
+  ];
+
+  it("returns id, title, category for each document", () => {
+    const list = listDocuments(sampleDocs);
+    assert.equal(list.length, 2);
+    assert.equal(list[0].id, "DOC-1");
+    assert.equal(list[0].title, "Doc One");
+    assert.equal(list[0].category, "Cat A");
+    assert.equal(list[1].id, "DOC-2");
+  });
+
+  it("does not include body content", () => {
+    const list = listDocuments(sampleDocs);
+    for (const item of list) {
+      assert.equal(item.body, undefined, "body should not be in list output");
     }
   });
 
-  it("maintains overlap between consecutive chunks", () => {
-    const words = Array.from({ length: 60 }, (_, i) => `w${i}`);
-    const text = words.join(" ");
-    const chunks = chunkText(text, 20, 5);
-
-    // Last 5 words of chunk 0 should appear at start of chunk 1
-    const chunk0Words = chunks[0].split(/\s+/);
-    const chunk1Words = chunks[1].split(/\s+/);
-    const overlap = chunk0Words.slice(-5);
-    const start1 = chunk1Words.slice(0, 5);
-    assert.deepEqual(overlap, start1);
-  });
-
-  it("handles empty or whitespace-only text", () => {
-    const chunks = chunkText("   ", 400, 50);
-    assert.equal(chunks.length, 1);
-  });
-});
-
-// ── termFrequency ──
-
-describe("termFrequency", () => {
-  it("counts term frequency correctly", () => {
-    const tf = termFrequency("gas gas leak leak leak valve");
-    assert.equal(tf.get("gas"), 2);
-    assert.equal(tf.get("leak"), 3);
-    assert.equal(tf.get("valve"), 1);
-  });
-
-  it("lowercases all terms", () => {
-    const tf = termFrequency("Gas GAS gas");
-    assert.equal(tf.get("gas"), 3);
-    assert.equal(tf.has("Gas"), false);
-  });
-
-  it("strips single-character tokens", () => {
-    const tf = termFrequency("a b gas c leak");
-    assert.equal(tf.has("a"), false);
-    assert.equal(tf.has("b"), false);
-    assert.equal(tf.get("gas"), 1);
-  });
-
-  it("returns empty map for empty input", () => {
-    const tf = termFrequency("");
-    assert.equal(tf.size, 0);
-  });
-});
-
-// ── cosineSimilarity ──
-
-describe("cosineSimilarity", () => {
-  it("returns 1 for identical vectors", () => {
-    const a = new Map([["gas", 2], ["leak", 3]]);
-    const sim = cosineSimilarity(a, a);
-    assert.ok(Math.abs(sim - 1) < 1e-9);
-  });
-
-  it("returns 0 for completely disjoint vectors", () => {
-    const a = new Map([["gas", 1]]);
-    const b = new Map([["valve", 1]]);
-    assert.equal(cosineSimilarity(a, b), 0);
-  });
-
-  it("returns value between 0 and 1 for partially overlapping vectors", () => {
-    const a = new Map([["gas", 2], ["leak", 1]]);
-    const b = new Map([["gas", 1], ["valve", 3]]);
-    const sim = cosineSimilarity(a, b);
-    assert.ok(sim > 0 && sim < 1);
-  });
-
-  it("returns 0 when either vector is empty", () => {
-    const a = new Map();
-    const b = new Map([["gas", 1]]);
-    assert.equal(cosineSimilarity(a, b), 0);
-    assert.equal(cosineSimilarity(b, a), 0);
+  it("returns empty array for no docs", () => {
+    const list = listDocuments([]);
+    assert.deepEqual(list, []);
   });
 });

@@ -1,100 +1,49 @@
-import { describe, it, before, after } from "node:test";
+/**
+ * CAG architecture validation tests.
+ *
+ * Verifies that the CAG modules export the expected interfaces
+ * and that old RAG dependencies (better-sqlite3) are not present.
+ */
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "fs";
 import path from "path";
-import os from "os";
-import { VectorStore } from "../src/vectorStore.js";
+import { fileURLToPath } from "url";
 
-let store;
-const tmpDir = path.join(os.tmpdir(), `rag-test-${Date.now()}`);
-const dbPath = path.join(tmpDir, "test.db");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, "..");
 
-before(() => {
-  store = new VectorStore(dbPath);
-});
-
-after(() => {
-  store.close();
-  // Clean up temp DB
-  try {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  } catch { /* ignore */ }
-});
-
-describe("VectorStore", () => {
-  it("starts with zero chunks", () => {
-    assert.equal(store.count(), 0);
+describe("CAG architecture", () => {
+  it("context.js exports required functions", async () => {
+    const ctx = await import("../src/context.js");
+    assert.equal(typeof ctx.parseFrontMatter, "function");
+    assert.equal(typeof ctx.buildDomainContext, "function");
+    assert.equal(typeof ctx.buildCompactContext, "function");
+    assert.equal(typeof ctx.listDocuments, "function");
+    assert.equal(typeof ctx.loadDocuments, "function");
   });
 
-  it("inserts a chunk and increments count", () => {
-    store.insert("DOC-001", "Gas Leak Detection", "Inspection", 0, "Check for gas leaks using a portable detector.");
-    assert.equal(store.count(), 1);
+  it("chatEngine.js exports ChatEngine class", async () => {
+    const mod = await import("../src/chatEngine.js");
+    assert.equal(typeof mod.ChatEngine, "function");
   });
 
-  it("inserts multiple chunks for the same document", () => {
-    store.insert("DOC-001", "Gas Leak Detection", "Inspection", 1, "Apply soapy water to joints and observe bubbles.");
-    store.insert("DOC-001", "Gas Leak Detection", "Inspection", 2, "Record findings in the inspection log.");
-    assert.equal(store.count(), 3);
+  it("package.json does not depend on better-sqlite3", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"));
+    assert.equal(pkg.dependencies["better-sqlite3"], undefined,
+      "better-sqlite3 should not be a dependency in CAG");
   });
 
-  it("inserts chunks for a different document", () => {
-    store.insert("DOC-002", "Valve Types", "Equipment", 0, "Gate valves control flow by raising or lowering a gate.");
-    store.insert("DOC-002", "Valve Types", "Equipment", 1, "Ball valves use a rotating ball to control flow.");
-    assert.equal(store.count(), 5);
+  it("package.json does not have ingest script", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"));
+    assert.equal(pkg.scripts.ingest, undefined,
+      "ingest script should not exist in CAG");
   });
 
-  it("searches and returns relevant chunks ranked by similarity", () => {
-    const results = store.search("gas leak detection portable detector", 3);
-    assert.ok(results.length > 0, "should return results");
-    assert.ok(results[0].score > 0, "top result should have positive score");
-    // The gas leak doc should rank higher than the valve doc
-    assert.equal(results[0].doc_id, "DOC-001");
-  });
-
-  it("returns no results for completely unrelated query", () => {
-    const results = store.search("quantum physics entanglement", 3);
-    assert.equal(results.length, 0);
-  });
-
-  it("respects topK limit", () => {
-    const results = store.search("gas", 2);
-    assert.ok(results.length <= 2);
-  });
-
-  it("lists distinct documents", () => {
-    const docs = store.listDocs();
-    assert.equal(docs.length, 2);
-    const ids = docs.map((d) => d.doc_id).sort();
-    assert.deepEqual(ids, ["DOC-001", "DOC-002"]);
-  });
-
-  it("listDocs includes chunk count per document", () => {
-    const docs = store.listDocs();
-    const doc1 = docs.find((d) => d.doc_id === "DOC-001");
-    assert.equal(doc1.chunks, 3);
-    const doc2 = docs.find((d) => d.doc_id === "DOC-002");
-    assert.equal(doc2.chunks, 2);
-  });
-
-  it("removes chunks by docId", () => {
-    store.removeByDocId("DOC-002");
-    assert.equal(store.count(), 3);
-    const docs = store.listDocs();
-    assert.equal(docs.length, 1);
-    assert.equal(docs[0].doc_id, "DOC-001");
-  });
-
-  it("clear removes all chunks", () => {
-    store.clear();
-    assert.equal(store.count(), 0);
-    assert.deepEqual(store.listDocs(), []);
-  });
-
-  it("works correctly after clear and re-insert", () => {
-    store.insert("DOC-003", "PPE Requirements", "Safety", 0, "Hard hat and safety glasses required at all times.");
-    assert.equal(store.count(), 1);
-    const results = store.search("safety glasses hard hat", 1);
-    assert.equal(results.length, 1);
-    assert.equal(results[0].doc_id, "DOC-003");
+  it("docs directory exists with markdown files", () => {
+    const docsDir = path.join(rootDir, "docs");
+    assert.ok(fs.existsSync(docsDir), "docs/ directory must exist");
+    const files = fs.readdirSync(docsDir).filter(f => f.endsWith(".md"));
+    assert.ok(files.length > 0, "docs/ should contain .md files");
   });
 });
