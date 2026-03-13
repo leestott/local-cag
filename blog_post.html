@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build a Fully Offline AI App with Foundry Local: No Cloud Required</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1a1a2e;
+      --text-muted: #555;
+      --accent: #0078d4;
+      --accent-dark: #005a9e;
+      --code-bg: #f4f4f8;
+      --border: #e0e0e0;
+      --highlight-bg: #e8f4fd;
+      --warning-bg: #fff8e1;
+      --warning-border: #ffc107;
+      --table-header: #f0f4f8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      margin-top: 1.8rem;
+      margin-bottom: 0.6rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin: 1rem 0;
+      display: block;
+    }
+
+    .image-caption {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: -0.5rem;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+      font-size: 0.9em;
+    }
+
+    p code, li code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--highlight-bg);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+
+    blockquote p:last-child { margin-bottom: 0; }
+
+    .callout {
+      background: var(--warning-bg);
+      border-left: 4px solid var(--warning-border);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+
+    ul, ol {
+      margin: 0.5rem 0 1.25rem 1.5rem;
+    }
+
+    li { margin-bottom: 0.4rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 0.6rem 0.9rem;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th {
+      background: var(--table-header);
+      font-weight: 600;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 1.25rem 0 1.5rem;
+    }
+
+    .comparison-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+
+    .comparison-card h4 {
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    .comparison-card.cag { border-top: 3px solid #0078d4; }
+    .comparison-card.rag { border-top: 3px solid #7c3aed; }
+
+    .pros { color: #16a34a; }
+    .cons { color: #dc2626; }
+
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .cta-box {
+      background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+      text-align: center;
+    }
+
+    .cta-box h3 { margin-top: 0; }
+
+    .cta-box a {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      padding: 0.6rem 1.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      text-decoration: none;
+    }
+
+    .cta-box a:hover {
+      background: var(--accent-dark);
+      text-decoration: none;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .step-content { flex: 1; }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      h1 { font-size: 1.6rem; }
+      h2 { font-size: 1.3rem; }
+      .comparison-grid, .screenshot-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <article>
+
+    <h1>Build a Fully Offline AI App with Foundry Local: No Cloud Required</h1>
+    <p class="subtitle">A hands-on guide to building an on-device AI support agent using Context-Augmented Generation, JavaScript, and Foundry Local.</p>
+    <p class="meta">Reading time: approximately 8 minutes</p>
+
+    <!-- ──────────────── INTRODUCTION ──────────────── -->
+
+    <p>
+      You have probably heard the AI pitch: "just call our API." But what happens when your application needs to work without an internet connection? Perhaps your users are field engineers standing next to a pipeline in the middle of nowhere, or your organisation has strict data privacy requirements, or you simply want to build something that works without a cloud bill.
+    </p>
+    <p>
+      This post walks you through how to build a <strong>fully offline, on-device AI application</strong> using <a href="https://foundrylocal.ai">Foundry Local</a> and a pattern called <strong>Context-Augmented Generation (CAG)</strong>. By the end, you will have a clear understanding of what CAG is, how it compares to RAG, and the practical steps to build your own solution.
+    </p>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/01-landing-page.png"
+      alt="Screenshot of the Gas Field Support Agent landing page, showing a dark-themed chat interface with quick-action buttons for common questions"
+    >
+    <p class="image-caption">The finished application: a browser-based AI support agent that runs entirely on your machine.</p>
+
+    <!-- ──────────────── WHAT IS CAG ──────────────── -->
+
+    <h2>What Is Context-Augmented Generation?</h2>
+
+    <p>
+      <strong>Context-Augmented Generation (CAG)</strong> is a pattern for making AI models useful with your own domain-specific content. Instead of hoping the model "knows" the answer from its training data, you pre-load your entire knowledge base into the model's context window at startup. Every query the model handles has access to all of your documents, all of the time.
+    </p>
+    <p>
+      The flow is straightforward:
+    </p>
+    <ol>
+      <li><strong>Load</strong> your documents into memory when the application starts.</li>
+      <li><strong>Inject</strong> the most relevant documents into the prompt alongside the user's question.</li>
+      <li><strong>Generate</strong> a response grounded in your content.</li>
+    </ol>
+    <p>
+      There is no retrieval pipeline, no vector database, and no embedding model. Your documents are read from disc, held in memory, and selected per query using simple keyword scoring. The model generates answers grounded in your content rather than relying on what it learnt during training.
+    </p>
+
+    <!-- ──────────────── CAG vs RAG ──────────────── -->
+
+    <h2>CAG vs RAG: Understanding the Trade-offs</h2>
+
+    <p>
+      If you have explored AI application patterns before, you have likely encountered <strong>Retrieval-Augmented Generation (RAG)</strong>. Both CAG and RAG solve the same core problem: grounding an AI model's answers in your own content. They take different approaches, and each has genuine strengths and limitations.
+    </p>
+
+    <div class="comparison-grid">
+      <div class="comparison-card cag">
+        <h4>CAG (Context-Augmented Generation)</h4>
+        <p><strong>How it works:</strong> All documents are loaded at startup. The most relevant ones are selected per query using keyword scoring and injected into the prompt.</p>
+        <p class="pros"><strong>Strengths:</strong></p>
+        <ul>
+          <li>Drastically simpler architecture with no vector database, no embeddings, and no retrieval pipeline</li>
+          <li>Works fully offline with no external services</li>
+          <li>Minimal dependencies (just two npm packages in this sample)</li>
+          <li>Near-instant document selection with no embedding latency</li>
+          <li>Easy to set up, debug, and reason about</li>
+        </ul>
+        <p class="cons"><strong>Limitations:</strong></p>
+        <ul>
+          <li>Constrained by the model's context window size</li>
+          <li>Best suited to small, curated document sets (tens of documents, not thousands)</li>
+          <li>Keyword scoring is less precise than semantic similarity for ambiguous queries</li>
+          <li>Adding documents requires an application restart</li>
+        </ul>
+      </div>
+      <div class="comparison-card rag">
+        <h4>RAG (Retrieval-Augmented Generation)</h4>
+        <p><strong>How it works:</strong> Documents are chunked, embedded into vectors, and stored in a database. At query time, the most semantically similar chunks are retrieved and injected into the prompt.</p>
+        <p class="pros"><strong>Strengths:</strong></p>
+        <ul>
+          <li>Scales to thousands or millions of documents</li>
+          <li>Semantic search finds relevant content even when the user's wording differs from the source material</li>
+          <li>Documents can be added or updated dynamically without restarting</li>
+          <li>Fine-grained retrieval (chunk-level) can be more token-efficient for large collections</li>
+        </ul>
+        <p class="cons"><strong>Limitations:</strong></p>
+        <ul>
+          <li>More complex architecture: requires an embedding model, a vector database, and a chunking strategy</li>
+          <li>Retrieval quality depends heavily on chunking, embedding model choice, and tuning</li>
+          <li>Additional latency from the embedding and search steps</li>
+          <li>More dependencies and infrastructure to manage</li>
+        </ul>
+      </div>
+    </div>
+
+    <blockquote>
+      <p>
+        <strong>Want to compare these patterns hands-on?</strong> There is a <a href="https://github.com/leestott/local-rag">RAG-based implementation</a> of the same gas field scenario using vector search and embeddings. Clone both repositories, run them side by side, and see how the architectures differ in practice.
+      </p>
+    </blockquote>
+
+    <h3>When Should You Choose Which?</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Consideration</th>
+          <th>Choose CAG</th>
+          <th>Choose RAG</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Document count</td>
+          <td>Tens of documents</td>
+          <td>Hundreds or thousands</td>
+        </tr>
+        <tr>
+          <td>Offline requirement</td>
+          <td>Essential</td>
+          <td>Optional (can run locally too)</td>
+        </tr>
+        <tr>
+          <td>Setup complexity</td>
+          <td>Minimal</td>
+          <td>Moderate to high</td>
+        </tr>
+        <tr>
+          <td>Document updates</td>
+          <td>Infrequent (restart to reload)</td>
+          <td>Frequent or dynamic</td>
+        </tr>
+        <tr>
+          <td>Query precision</td>
+          <td>Good for keyword-matchable content</td>
+          <td>Better for semantically diverse queries</td>
+        </tr>
+        <tr>
+          <td>Infrastructure</td>
+          <td>None beyond the runtime</td>
+          <td>Vector database, embedding model</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      For the sample application in this post (20 gas engineering procedure documents on a local machine), CAG is the clear winner. If your use case grows to hundreds of documents or requires real-time ingestion, RAG becomes the better choice. Both patterns can run offline using Foundry Local.
+    </p>
+
+    <!-- ──────────────── FOUNDRY LOCAL ──────────────── -->
+
+    <h2>Foundry Local: Your On-Device AI Runtime</h2>
+
+    <p>
+      <a href="https://foundrylocal.ai">Foundry Local</a> is a lightweight runtime from Microsoft that downloads, manages, and serves language models entirely on your device. No cloud account, no API keys, no outbound network calls (after the initial model download).
+    </p>
+
+    <p>
+      In this sample, <strong>your application is responsible for deciding which model to use</strong>, and it does that through the <code>foundry-local-sdk</code>. The app creates a <code>FoundryLocalManager</code>, asks the SDK for the local model catalogue, and then runs a small selection policy from <code>src/modelSelector.js</code>. That policy looks at the machine's available RAM, filters out models that are too large, ranks the remaining chat models by preference, and then returns the best fit for that device.
+    </p>
+
+    <p>
+      <strong>Why does it work this way?</strong> Because shipping one fixed model would either exclude lower-spec machines or underuse more capable ones. A 14B model may be perfectly reasonable on a 32 GB workstation, but the same choice would be slow or unusable on an 8 GB laptop. By selecting at runtime, the same codebase can run across a wider range of developer machines without manual tuning.
+    </p>
+
+    <p>What makes it particularly useful for developers:</p>
+    <ul>
+      <li><strong>No GPU required</strong> &mdash; runs on CPU or NPU, making it accessible on standard laptops and desktops</li>
+      <li><strong>Native SDK bindings</strong> &mdash; in-process inference via the <code>foundry-local-sdk</code> npm package, with no HTTP round-trips to a local server</li>
+      <li><strong>Automatic model management</strong> &mdash; downloads, caches, and loads models automatically</li>
+      <li><strong>Dynamic model selection</strong> &mdash; the SDK can evaluate your device's available RAM and pick the best model from the catalogue</li>
+      <li><strong>Real-time progress callbacks</strong> &mdash; ideal for building loading UIs that show download and initialisation progress</li>
+    </ul>
+
+    <p>
+      The integration code is refreshingly minimal. Here is the core pattern:
+    </p>
+
+<pre><code>import { FoundryLocalManager } from "foundry-local-sdk";
+
+// Create a manager and get the model catalogue
+const manager = FoundryLocalManager.create({ appName: "my-app" });
+
+// Auto-select the best model for this device based on available RAM
+const models = await manager.catalog.getModels();
+const model = selectBestModel(models);
+
+// Download if not cached, then load into memory
+if (!model.isCached) {
+  await model.download((progress) =&gt; {
+    console.log(`Download: ${progress.toFixed(0)}%`);
+  });
+}
+await model.load();
+
+// Create a chat client for direct in-process inference
+const chatClient = model.createChatClient();
+const response = await chatClient.completeChat([
+  { role: "system", content: "You are a helpful assistant." },
+  { role: "user", content: "How do I detect a gas leak?" }
+]);</code></pre>
+
+    <p>
+      That is it. No server configuration, no authentication tokens, no cloud provisioning. The model runs in the same process as your application.
+    </p>
+
+    <p>
+      The download step matters for a simple reason: offline inference only works once the model files exist locally. The SDK checks whether the chosen model is already cached on the machine. If it is not, the application asks Foundry Local to download it once, store it locally, and then load it into memory. After that first run, the cached model can be reused, which is why subsequent launches are much faster and can operate without any network dependency.
+    </p>
+
+    <p>
+      Put another way, there are two cooperating pieces here. <strong>Your application chooses</strong> which model is appropriate for the device and the scenario. <strong>Foundry Local and its SDK handle</strong> the mechanics of making that model available locally, caching it, loading it, and exposing a chat client for inference. That separation keeps the application logic clear whilst letting the runtime handle the heavy lifting.
+    </p>
+
+    <!-- ──────────────── THE STACK ──────────────── -->
+
+    <h2>The Technology Stack</h2>
+
+    <p>
+      The sample application is deliberately simple. No frameworks, no build steps, no Docker:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AI Model</td>
+          <td><a href="https://foundrylocal.ai">Foundry Local</a> + auto-selected model</td>
+          <td>Runs locally via native SDK bindings; best model chosen for your device</td>
+        </tr>
+        <tr>
+          <td>Back end</td>
+          <td>Node.js + Express</td>
+          <td>Lightweight HTTP server, everyone knows it</td>
+        </tr>
+        <tr>
+          <td>Context</td>
+          <td>Markdown files pre-loaded at startup</td>
+          <td>No vector database, no embeddings, no retrieval step</td>
+        </tr>
+        <tr>
+          <td>Front end</td>
+          <td>Single HTML file with inline CSS</td>
+          <td>No build step, mobile-responsive, field-ready</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      The total dependency footprint is two npm packages: <code>express</code> and <code>foundry-local-sdk</code>.
+    </p>
+
+    <!-- ──────────────── ARCHITECTURE ──────────────── -->
+
+    <h2>Architecture Overview</h2>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/07-architecture-diagram.png"
+      alt="Architecture diagram showing four layers: Client (HTML/CSS/JS), Server (Express.js), CAG Engine (document loading, keyword scoring, prompt construction), and AI Layer (Foundry Local with in-process inference)"
+    >
+    <p class="image-caption">The four-layer architecture, all running on a single machine.</p>
+
+    <p>The system has four layers, all running in a single process on your device:</p>
+    <ul>
+      <li><strong>Client layer:</strong> a single HTML file served by Express, with quick-action buttons and a responsive chat interface</li>
+      <li><strong>Server layer:</strong> Express.js starts immediately and serves the UI plus an SSE status endpoint; API routes handle chat (streaming and non-streaming), context listing, and health checks</li>
+      <li><strong>CAG engine:</strong> loads all domain documents at startup, selects the most relevant ones per query using keyword scoring, and injects them into the prompt</li>
+      <li><strong>AI layer:</strong> Foundry Local runs the auto-selected model on CPU/NPU via native SDK bindings (in-process inference, no HTTP round-trips)</li>
+    </ul>
+
+    <!-- ──────────────── BUILDING IT ──────────────── -->
+
+    <h2>Building the Solution Step by Step</h2>
+
+    <h3>Prerequisites</h3>
+
+    <p>You need two things installed on your machine:</p>
+    <ol>
+      <li><strong>Node.js 20 or later:</strong> <a href="https://nodejs.org/">download from nodejs.org</a></li>
+      <li><strong>Foundry Local:</strong> Microsoft's on-device AI runtime:
+<pre><code>winget install Microsoft.FoundryLocal</code></pre>
+      </li>
+    </ol>
+
+    <p>
+      Foundry Local will automatically select and download the best model for your device the first time you run the application. You can override this by setting the <code>FOUNDRY_MODEL</code> environment variable to a specific model alias.
+    </p>
+
+    <h3>Getting the Code Running</h3>
+
+<pre><code># Clone the repository
+git clone https://github.com/leestott/local-cag.git
+cd local-cag
+
+# Install dependencies
+npm install
+
+# Start the server
+npm start</code></pre>
+
+    <p>
+      Open <strong>http://127.0.0.1:3000</strong> in your browser. You will see a loading overlay with a progress bar whilst the model downloads (first run only) and loads into memory. Once the model is ready, the overlay fades away and you can start chatting.
+    </p>
+
+    <div class="screenshot-grid">
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/01-landing-page.png"
+          alt="Desktop view of the application showing the chat interface with quick-action buttons"
+        >
+        <p class="image-caption">Desktop view</p>
+      </div>
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/02-mobile-view.png"
+          alt="Mobile view of the application showing the responsive layout on a smaller screen"
+        >
+        <p class="image-caption">Mobile view</p>
+      </div>
+    </div>
+
+    <!-- ──────────────── HOW THE PIPELINE WORKS ──────────────── -->
+
+    <h2>How the CAG Pipeline Works</h2>
+
+    <p>Let us trace what happens when a user asks: <strong>"How do I detect a gas leak?"</strong></p>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/08-rag-flow-sequence.png"
+      alt="Sequence diagram showing the CAG query flow: user sends a question, the server selects relevant documents, constructs a prompt, sends it to Foundry Local, and streams the response back"
+    >
+    <p class="image-caption">The query flow from browser to model and back.</p>
+
+    <div class="step">
+      <span class="step-number">1</span>
+      <div class="step-content">
+        <strong>Server starts and loads documents</strong>
+        <p>When you run <code>npm start</code>, the Express server starts on port 3000. All <code>.md</code> files in the <code>docs/</code> folder are read, parsed (with optional YAML front-matter for title, category, and ID), and grouped by category. A document index is built listing all available topics.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <div class="step-content">
+        <strong>Model is selected and loaded</strong>
+        <p>The model selector evaluates your system's available RAM and picks the best model from the Foundry Local catalogue. If the model is not already cached, it downloads it (with progress streamed to the browser via SSE). The model is then loaded into memory for in-process inference.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">3</span>
+      <div class="step-content">
+        <strong>User sends a question</strong>
+        <p>The question arrives at the Express server. The chat engine selects the top 3 most relevant documents using keyword scoring.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">4</span>
+      <div class="step-content">
+        <strong>Prompt is constructed</strong>
+        <p>The engine builds a messages array containing: the system prompt (with safety-first instructions), the document index (so the model knows all available topics), the 3 selected documents (approximately 6,000 characters), the conversation history, and the user's question.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">5</span>
+      <div class="step-content">
+        <strong>Model generates a grounded response</strong>
+        <p>The prompt is sent to the locally loaded model via the Foundry Local SDK's native bindings. The response streams back token by token through Server-Sent Events to the browser.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-grid">
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/03-chat-response.png"
+          alt="Chat response showing safety warnings followed by step-by-step gas leak detection guidance"
+        >
+        <p class="image-caption">A response with safety warnings and step-by-step guidance</p>
+      </div>
+      <div>
+        <img
+          src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/04-sources-panel.png"
+          alt="Sources panel showing the specific documents referenced in the response"
+        >
+        <p class="image-caption">The sources panel shows which documents were used</p>
+      </div>
+    </div>
+
+    <!-- ──────────────── KEY CODE ──────────────── -->
+
+    <h2>Key Code Walkthrough</h2>
+
+    <h3>Loading Documents (the Context Module)</h3>
+
+    <p>
+      The context module reads all markdown files from the <code>docs/</code> folder at startup. Each document can have optional YAML front-matter for metadata:
+    </p>
+
+<pre><code>// src/context.js
+export function loadDocuments() {
+  const files = fs.readdirSync(config.docsDir)
+    .filter(f =&gt; f.endsWith(".md"))
+    .sort();
+
+  const docs = [];
+  for (const file of files) {
+    const raw = fs.readFileSync(path.join(config.docsDir, file), "utf-8");
+    const { meta, body } = parseFrontMatter(raw);
+    docs.push({
+      id: meta.id || path.basename(file, ".md"),
+      title: meta.title || file,
+      category: meta.category || "General",
+      content: body.trim(),
+    });
+  }
+  return docs;
+}</code></pre>
+
+    <p>
+      There is no chunking, no vector computation, and no database. The documents are held in memory as plain text.
+    </p>
+
+    <h3>Dynamic Model Selection</h3>
+
+    <p>
+      Rather than hard-coding a model, the application evaluates your system at runtime:
+    </p>
+
+<pre><code>// src/modelSelector.js
+const totalRamMb = os.totalmem() / (1024 * 1024);
+const budgetMb = totalRamMb * 0.6; // Use up to 60% of system RAM
+
+// Filter to models that fit, rank by quality, boost cached models
+const candidates = allModels.filter(m =&gt;
+  m.task === "chat-completion" &amp;&amp;
+  m.fileSizeMb &lt;= budgetMb
+);
+
+// Returns the best model: e.g. phi-4 on a 32 GB machine,
+// or phi-3.5-mini on a laptop with 8 GB RAM</code></pre>
+
+    <p>
+      This means the same application runs on a powerful workstation (selecting a 14B parameter model) or a constrained laptop (selecting a 3.8B model), with no code changes required.
+    </p>
+
+    <p>
+      This is worth calling out because it is one of the most practical parts of the sample. Developers do not have to decide up front which single model every user should run. The application makes that decision at startup based on the hardware budget you set, then asks Foundry Local to fetch the model if it is missing. The result is a smoother first-run experience and fewer support headaches when the same app is used on mixed hardware.
+    </p>
+
+    <h3>The System Prompt</h3>
+
+    <p>
+      For safety-critical domains, the system prompt is engineered to prioritise safety, prevent hallucination, and enforce structured responses:
+    </p>
+
+<pre><code>// src/prompts.js
+export const SYSTEM_PROMPT = `You are a local, offline support agent
+for gas field inspection and maintenance engineers.
+
+Behaviour Rules:
+- Always prioritise safety. If a procedure involves risk,
+  explicitly call it out.
+- Do not hallucinate procedures, measurements, or tolerances.
+- If the answer is not in the provided context, say:
+  "This information is not available in the local knowledge base."
+
+Response Format:
+- Summary (1-2 lines)
+- Safety Warnings (if applicable)
+- Step-by-step Guidance
+- Reference (document name + section)`;</code></pre>
+
+    <p>
+      This pattern is transferable to any safety-critical domain: medical devices, electrical work, aviation maintenance, or chemical handling.
+    </p>
+
+    <!-- ──────────────── ADAPT FOR YOUR DOMAIN ──────────────── -->
+
+    <h2>Adapting This for Your Own Domain</h2>
+
+    <p>
+      The sample project is designed to be forked and adapted. Here is how to make it yours in three steps:
+    </p>
+
+    <h3>1. Replace the documents</h3>
+    <p>
+      Delete the gas engineering documents in <code>docs/</code> and add your own markdown files. The context module handles any markdown content with optional YAML front-matter:
+    </p>
+
+<pre><code>---
+title: Troubleshooting Widget Errors
+category: Support
+id: KB-001
+---
+
+# Troubleshooting Widget Errors
+...your content here...</code></pre>
+
+    <h3>2. Edit the system prompt</h3>
+    <p>
+      Open <code>src/prompts.js</code> and rewrite the system prompt for your domain. Keep the structure (summary, safety, steps, reference) and update the language to match your users' expectations.
+    </p>
+
+    <h3>3. Override the model (optional)</h3>
+    <p>
+      By default the application auto-selects the best model. To force a specific model:
+    </p>
+
+<pre><code># See available models
+foundry model list
+
+# Force a smaller, faster model
+FOUNDRY_MODEL=phi-3.5-mini npm start
+
+# Or a larger, higher-quality model
+FOUNDRY_MODEL=phi-4 npm start</code></pre>
+
+    <p>
+      Smaller models give faster responses on constrained devices. Larger models give better quality. The auto-selector picks the largest model that fits within 60% of your system RAM.
+    </p>
+
+    <!-- ──────────────── MOBILE UI ──────────────── -->
+
+    <h2>Building a Field-Ready UI</h2>
+
+    <p>
+      The front end is a single HTML file with inline CSS. No React, no build tooling, no bundler. This keeps the project accessible to beginners and easy to deploy.
+    </p>
+
+    <p>Design decisions that matter for field use:</p>
+    <ul>
+      <li><strong>Dark, high-contrast theme</strong> with 18px base font size for readability in bright sunlight</li>
+      <li><strong>Large touch targets</strong> (minimum 48px) for operation with gloves or PPE</li>
+      <li><strong>Quick-action buttons</strong> for common questions, so engineers do not need to type on a phone</li>
+      <li><strong>Responsive layout</strong> that works from 320px to 1920px+ screen widths</li>
+      <li><strong>Streaming responses</strong> via SSE, so the user sees tokens arriving in real time</li>
+    </ul>
+
+    <img
+      src="https://raw.githubusercontent.com/leestott/local-cag/main/screenshots/06-mobile-chat.png"
+      alt="Mobile view of the chat interface showing a conversation with the AI agent on a small screen"
+    >
+    <p class="image-caption">The mobile chat experience, optimised for field use.</p>
+
+    <!-- ──────────────── SSE LOADING ──────────────── -->
+
+    <h2>Visual Startup Progress with SSE</h2>
+
+    <p>
+      A standout feature of this application is the loading experience. When the user opens the browser, they see a progress overlay showing exactly what the application is doing:
+    </p>
+
+    <ol>
+      <li>Loading domain documents</li>
+      <li>Initialising the Foundry Local SDK</li>
+      <li>Selecting the best model for the device</li>
+      <li>Downloading the model (with a percentage progress bar, first run only)</li>
+      <li>Loading the model into memory</li>
+    </ol>
+
+    <p>
+      This works because the Express server starts <em>before</em> the model finishes loading. The browser connects immediately and receives real-time status updates via Server-Sent Events. Chat endpoints return <code>503</code> whilst the model is loading, so the UI cannot send queries prematurely.
+    </p>
+
+<pre><code>// Server-side: broadcast status to all connected browsers
+function broadcastStatus(state) {
+  initState = state;
+  const payload = `data: ${JSON.stringify(state)}\n\n`;
+  for (const client of statusClients) {
+    client.write(payload);
+  }
+}
+
+// During initialisation:
+broadcastStatus({ stage: "downloading", message: "Downloading phi-4...", progress: 42 });</code></pre>
+
+    <p>
+      This pattern is worth adopting in any application where model loading takes more than a few seconds. Users should never stare at a blank screen wondering whether something is broken.
+    </p>
+
+    <!-- ──────────────── TESTING ──────────────── -->
+
+    <h2>Testing</h2>
+
+    <p>
+      The project includes unit tests using the built-in Node.js test runner, with no extra test framework needed:
+    </p>
+
+<pre><code># Run all tests
+npm test</code></pre>
+
+    <p>
+      Tests cover configuration, server endpoints, and document loading. Use them as a starting point when you adapt the project for your own domain.
+    </p>
+
+    <!-- ──────────────── EXTENDING ──────────────── -->
+
+    <h2>Ideas for Extending the Project</h2>
+
+    <p>Once you have the basics running, there are plenty of directions to explore:</p>
+    <ul>
+      <li><strong>Conversation memory:</strong> persist chat history across sessions using local storage or a lightweight database</li>
+      <li><strong>Hybrid CAG + RAG:</strong> add a vector retrieval step for larger document collections that exceed the context window</li>
+      <li><strong>Multi-modal support:</strong> add image-based queries (photographing a fault code, for example)</li>
+      <li><strong>PWA packaging:</strong> make it installable as a standalone offline application on mobile devices</li>
+      <li><strong>Custom model fine-tuning:</strong> fine-tune a model on your domain data for even better answers</li>
+    </ul>
+
+    <!-- ──────────────── CTA ──────────────── -->
+
+    <div class="cta-box">
+      <h3>Ready to Build Your Own?</h3>
+      <p>
+        Clone the CAG sample, swap in your own documents, and have an offline AI agent running in minutes. Or compare it with the RAG approach to see which pattern suits your use case best.
+      </p>
+      <a href="https://github.com/leestott/local-cag">Get the CAG Sample</a>
+      &nbsp;&nbsp;
+      <a href="https://github.com/leestott/local-rag">Get the RAG Sample</a>
+    </div>
+
+    <!-- ──────────────── SUMMARY ──────────────── -->
+
+    <h2>Summary</h2>
+
+    <p>
+      Building a local AI application does not require a PhD in machine learning or a cloud budget. With Foundry Local, Node.js, and a set of domain documents, you can create a fully offline, mobile-responsive AI agent that answers questions grounded in your own content.
+    </p>
+
+    <p>The key takeaways:</p>
+    <ol>
+      <li><strong>CAG is ideal for small, curated document sets</strong> where simplicity and offline capability matter most. No vector database, no embeddings, no retrieval pipeline.</li>
+      <li><strong>RAG scales further</strong> when you have hundreds or thousands of documents, or need semantic search for ambiguous queries. See the <a href="https://github.com/leestott/local-rag">local-rag sample</a> to compare.</li>
+      <li><strong>Foundry Local</strong> makes on-device AI accessible: native SDK bindings, in-process inference, automatic model selection, and no GPU required.</li>
+      <li><strong>The architecture is transferable.</strong> Replace the gas engineering documents with your own content, update the system prompt, and you have a domain-specific AI agent for any field.</li>
+      <li><strong>Start simple, iterate outwards.</strong> Begin with CAG and a handful of documents. If your needs outgrow the context window, graduate to RAG. Both patterns can run entirely offline.</li>
+    </ol>
+
+    <p>
+      Clone the repository, swap in your own documents, and start building. The best way to learn is to get your hands on the code.
+    </p>
+
+  </article>
+
+  <footer>
+    <p>
+      This project is open source under the MIT licence. It is a scenario sample for learning and experimentation, not production medical or safety advice.
+    </p>
+    <p>
+      <a href="https://github.com/leestott/local-cag">local-cag on GitHub</a> &middot;
+      <a href="https://github.com/leestott/local-rag">local-rag on GitHub</a> &middot;
+      <a href="https://foundrylocal.ai">Foundry Local</a>
+    </p>
+  </footer>
+
+</body>
+</html>

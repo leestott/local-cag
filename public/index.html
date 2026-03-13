@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gas Field Support Agent</title>
   <style>
     /* ── Base: high-contrast, large text for field use ── */
@@ -114,6 +114,9 @@
       align-self: flex-start;
       background: var(--agent-bg);
       border: 1px solid var(--border);
+    }
+    .message.agent.streaming {
+      white-space: pre-wrap;
     }
     .message.agent .safety-warning {
       background: #3a2a1a;
@@ -238,6 +241,9 @@
     .message.agent strong {
       color: var(--warning);
     }
+    .intro-warning {
+      color: var(--warning);
+    }
 
 
 
@@ -250,7 +256,7 @@
     @media (max-width: 600px) {
       html { font-size: 16px; }
       .message { max-width: 98%; padding: 10px 14px; }
-      #quick-actions { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      #quick-actions { overflow-x: auto; flex-wrap: nowrap; }
       .quick-btn { flex-shrink: 0; }
       header h1 { font-size: 1rem; }
       #input-area { padding: 8px 10px; }
@@ -401,7 +407,7 @@
       <li>Pressure testing &amp; valve inspection</li>
       <li>PPE requirements &amp; compliance</li>
     </ul>
-    <em style="color: var(--warning);">⚠️ Always follow your site-specific safety procedures.</em>
+    <em class="intro-warning">⚠️ Always follow your site-specific safety procedures.</em>
   </div>
 </div>
 
@@ -631,6 +637,13 @@
     if (el) el.remove();
   }
 
+  function finalizeAgentMessage(el, text) {
+    if (!el) return;
+    el.classList.remove('streaming');
+    el.innerHTML = renderMarkdown(text);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
   // ── Send message ──
   async function sendMessage() {
     const text = input.value.trim();
@@ -670,6 +683,20 @@
       const decoder = new TextDecoder();
       let agentText = '';
       let agentDiv = null;
+      let renderPending = false;
+
+      function flushStreamText() {
+        renderPending = false;
+        if (!agentDiv) return;
+        agentDiv.textContent = agentText;
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function scheduleStreamText() {
+        if (renderPending) return;
+        renderPending = true;
+        requestAnimationFrame(flushStreamText);
+      }
 
       while (true) {
         const { done, value } = await reader.read();
@@ -686,11 +713,10 @@
             if (chunk.type === 'text') {
               agentText += chunk.data;
               if (!agentDiv) {
-                agentDiv = addMessage('agent', agentText);
-              } else {
-                agentDiv.innerHTML = renderMarkdown(agentText);
-                chat.scrollTop = chat.scrollHeight;
+                agentDiv = addMessage('agent', '');
+                agentDiv.classList.add('streaming');
               }
+              scheduleStreamText();
             } else if (chunk.type === 'error') {
               addMessage('agent', '❌ ' + chunk.data);
             }
@@ -698,8 +724,13 @@
         }
       }
 
+      if (renderPending) {
+        flushStreamText();
+      }
+
       // Add to history
       if (agentText) {
+        finalizeAgentMessage(agentDiv, agentText);
         conversationHistory.push({ role: 'assistant', content: agentText });
       }
 

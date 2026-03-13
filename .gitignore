@@ -37,6 +37,9 @@ tmp/
 # Package manager lock files (optional – remove if you want to commit)
 # package-lock.json
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
 # Foundry Local model cache (large files)
 .foundry/
 models/

@@ -4,8 +4,7 @@ import { config } from "../src/config.js";
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_COMPACT } from "../src/prompts.js";
 
 describe("config", () => {
-  it("has required model setting", () => {
-    assert.ok(config.model, "model must be defined");
+  it("has optional model override setting", () => {
     assert.equal(typeof config.model, "string");
   });
 

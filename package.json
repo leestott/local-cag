@@ -1,6 +1,6 @@
 {
   "name": "gas-field-local-cag",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Offline CAG-powered customer services and technical support agent for gas field inspection and maintenance engineers using Foundry Local",
   "type": "module",
   "scripts": {

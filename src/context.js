@@ -11,10 +11,214 @@ import fs from "fs";
 import path from "path";
 import { config } from "./config.js";
 
+const STOP_WORDS = new Set([
+  "about",
+  "after",
+  "before",
+  "could",
+  "field",
+  "from",
+  "have",
+  "into",
+  "local",
+  "mode",
+  "need",
+  "should",
+  "that",
+  "them",
+  "there",
+  "these",
+  "this",
+  "what",
+  "when",
+  "with",
+  "would",
+  "your",
+]);
+
+function getDocContent(doc) {
+  return (doc.content ?? doc.body ?? "").trim();
+}
+
+function normalize(text) {
+  return String(text || "").toLowerCase();
+}
+
+function tokenize(text) {
+  return normalize(text)
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length > 2 && !STOP_WORDS.has(term));
+}
+
+function uniqueTerms(text) {
+  return [...new Set(tokenize(text))];
+}
+
+function trimToLength(text, maxLength) {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+
+  const slice = text.slice(0, maxLength);
+  const lastBreak = Math.max(slice.lastIndexOf("\n"), slice.lastIndexOf(". "));
+  return `${slice.slice(0, lastBreak > 200 ? lastBreak : maxLength).trim()}\n...`;
+}
+
+function splitSections(content) {
+  const lines = content.split("\n");
+  const sections = [];
+  let heading = "Overview";
+  let bodyLines = [];
+
+  const pushSection = () => {
+    const body = bodyLines.join("\n").trim();
+    if (!heading && !body) {
+      return;
+    }
+
+    sections.push({
+      heading,
+      body,
+      text: [heading, body].filter(Boolean).join("\n"),
+      normalizedHeading: normalize(heading),
+      normalizedBody: normalize(body),
+    });
+  };
+
+  for (const line of lines) {
+    if (/^#{1,3}\s+/.test(line)) {
+      pushSection();
+      heading = line.trim();
+      bodyLines = [];
+      continue;
+    }
+
+    bodyLines.push(line);
+  }
+
+  pushSection();
+  return sections.filter((section) => section.body || section.heading !== "Overview");
+}
+
+function extractCompactContent(content) {
+  const lines = content.split("\n");
+  const keyLines = [];
+  let inSafety = false;
+  let inProcedure = false;
+
+  for (const line of lines) {
+    if (/^##\s*(safety|warning)/i.test(line)) {
+      inSafety = true;
+      inProcedure = false;
+      keyLines.push(line);
+    } else if (/^##\s*procedure/i.test(line)) {
+      inProcedure = true;
+      inSafety = false;
+      keyLines.push(line);
+    } else if (/^##\s/.test(line)) {
+      inSafety = false;
+      inProcedure = false;
+    } else if (inSafety || inProcedure) {
+      keyLines.push(line);
+    }
+  }
+
+  if (keyLines.length > 0) {
+    return keyLines.join("\n").trim();
+  }
+
+  return lines.filter((line) => line.trim()).slice(0, 5).join("\n");
+}
+
+function buildSectionText(section, maxLength) {
+  const heading = section.heading === "Overview" ? "" : section.heading;
+  return trimToLength([heading, section.body].filter(Boolean).join("\n"), maxLength);
+}
+
+function scoreSection(section, terms) {
+  let score = 0;
+  for (const term of terms) {
+    if (section.normalizedHeading.includes(term)) score += 5;
+    if (section.normalizedBody.includes(term)) score += 2;
+  }
+  return score;
+}
+
+function buildFocusedDocContext(doc, terms, { compact = false, maxCharsPerDoc = 1600, maxSections = 2 } = {}) {
+  const titleLine = `--- ${doc.title} [${doc.id}] ---`;
+
+  if (compact) {
+    const compactContent = trimToLength(doc.compactContent || extractCompactContent(getDocContent(doc)), maxCharsPerDoc);
+    return [titleLine, compactContent].join("\n");
+  }
+
+  const sections = Array.isArray(doc.sections) && doc.sections.length > 0
+    ? doc.sections
+    : splitSections(getDocContent(doc));
+
+  if (terms.length === 0) {
+    return [titleLine, trimToLength(getDocContent(doc), maxCharsPerDoc)].join("\n");
+  }
+
+  const ranked = sections
+    .map((section) => ({ section, score: scoreSection(section, terms) }))
+    .sort((a, b) => b.score - a.score);
+
+  const positiveMatches = ranked.filter((entry) => entry.score > 0).slice(0, maxSections);
+  const chosen = positiveMatches.length > 0 ? positiveMatches : ranked.slice(0, 1);
+
+  let remaining = maxCharsPerDoc;
+  const blocks = [];
+  for (const entry of chosen) {
+    if (remaining <= 0) break;
+    const sectionText = buildSectionText(entry.section, remaining);
+    if (!sectionText) continue;
+    blocks.push(sectionText);
+    remaining -= sectionText.length + 2;
+  }
+
+  const content = blocks.join("\n\n") || trimToLength(getDocContent(doc), maxCharsPerDoc);
+  return [titleLine, content].join("\n");
+}
+
+export function buildSearchTerms(query) {
+  return uniqueTerms(query);
+}
+
+export function findRelevantDocs(query, docs, maxDocs = 3) {
+  const terms = buildSearchTerms(query);
+
+  if (terms.length === 0) {
+    return { docs: docs.slice(0, maxDocs), matched: false, terms };
+  }
+
+  const scored = docs.map((doc) => {
+    const searchTitle = doc.searchTitle || normalize(doc.title);
+    const searchCategory = doc.searchCategory || normalize(doc.category);
+    const searchContent = doc.searchContent || normalize(getDocContent(doc));
+    let score = 0;
+    for (const term of terms) {
+      if (searchTitle.includes(term)) score += 8;
+      if (searchCategory.includes(term)) score += 3;
+      if (searchContent.includes(term)) score += 1;
+    }
+    return { doc, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const selected = scored.slice(0, maxDocs).filter((entry) => entry.score > 0);
+
+  return {
+    docs: selected.length > 0 ? selected.map((entry) => entry.doc) : docs.slice(0, maxDocs),
+    matched: selected.length > 0,
+    terms,
+  };
+}
+
 /**
  * Parse YAML-like front-matter from a markdown document.
  */
-function parseFrontMatter(text) {
+export function parseFrontMatter(text) {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { meta: {}, body: text };
 
@@ -48,11 +252,17 @@ export function loadDocuments() {
   for (const file of files) {
     const raw = fs.readFileSync(path.join(docsDir, file), "utf-8");
     const { meta, body } = parseFrontMatter(raw);
+    const content = body.trim();
     docs.push({
       id: meta.id || path.basename(file, ".md"),
       title: meta.title || file,
       category: meta.category || "General",
-      content: body.trim(),
+      content,
+      compactContent: extractCompactContent(content),
+      sections: splitSections(content),
+      searchTitle: normalize(meta.title || file),
+      searchCategory: normalize(meta.category || "General"),
+      searchContent: normalize(content),
     });
   }
 
@@ -67,7 +277,7 @@ export function loadDocuments() {
  */
 export function buildDomainContext(docs) {
   if (docs.length === 0) {
-    return "No domain documents loaded.";
+    return "";
   }
 
   // Group documents by category
@@ -84,7 +294,7 @@ export function buildDomainContext(docs) {
     sections.push(`=== ${category} ===`);
     for (const doc of categoryDocs) {
       sections.push(`--- ${doc.title} [${doc.id}] ---`);
-      sections.push(doc.content);
+      sections.push(getDocContent(doc));
       sections.push("");
     }
   }
@@ -98,42 +308,13 @@ export function buildDomainContext(docs) {
  */
 export function buildCompactContext(docs) {
   if (docs.length === 0) {
-    return "No domain documents loaded.";
+    return "";
   }
 
   const sections = [];
   for (const doc of docs) {
-    // Extract just the safety warnings and key procedure steps
-    const lines = doc.content.split("\n");
-    const keyLines = [];
-    let inSafety = false;
-    let inProcedure = false;
-
-    for (const line of lines) {
-      if (/^##\s*(safety|warning)/i.test(line)) {
-        inSafety = true;
-        inProcedure = false;
-        keyLines.push(line);
-      } else if (/^##\s*procedure/i.test(line)) {
-        inProcedure = true;
-        inSafety = false;
-        keyLines.push(line);
-      } else if (/^##\s/.test(line)) {
-        inSafety = false;
-        inProcedure = false;
-      } else if (inSafety || inProcedure) {
-        keyLines.push(line);
-      }
-    }
-
     sections.push(`--- ${doc.title} [${doc.id}] ---`);
-    if (keyLines.length > 0) {
-      sections.push(keyLines.join("\n"));
-    } else {
-      // Fallback: first 5 non-empty lines
-      const summary = lines.filter((l) => l.trim()).slice(0, 5).join("\n");
-      sections.push(summary);
-    }
+    sections.push(doc.compactContent || extractCompactContent(getDocContent(doc)));
     sections.push("");
   }
 
@@ -147,42 +328,16 @@ export function buildCompactContext(docs) {
  * enough for practical CPU inference.
  */
 export function selectRelevantDocs(query, docs, maxDocs = 3) {
-  const terms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 2);
-
-  if (terms.length === 0) return docs.slice(0, maxDocs);
-
-  const scored = docs.map((doc) => {
-    const titleLower = doc.title.toLowerCase();
-    const contentLower = doc.content.toLowerCase();
-    let score = 0;
-    for (const term of terms) {
-      if (titleLower.includes(term)) score += 3;
-      if (contentLower.includes(term)) score += 1;
-    }
-    return { doc, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  const selected = scored.slice(0, maxDocs).filter((s) => s.score > 0);
-  return selected.length > 0
-    ? selected.map((s) => s.doc)
-    : docs.slice(0, maxDocs);
+  return findRelevantDocs(query, docs, maxDocs).docs;
 }
 
 /**
  * Build context from a subset of selected documents.
  */
-export function buildSelectedContext(docs) {
-  const sections = [];
-  for (const doc of docs) {
-    sections.push(`--- ${doc.title} [${doc.id}] ---`);
-    sections.push(doc.content);
-    sections.push("");
-  }
-  return sections.join("\n");
+export function buildSelectedContext(docs, query = "", options = {}) {
+  const terms = options.terms || buildSearchTerms(query);
+  const sections = docs.map((doc) => buildFocusedDocContext(doc, terms, options));
+  return sections.join("\n\n");
 }
 
 /**

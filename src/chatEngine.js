@@ -15,7 +15,7 @@ import {
   loadDocuments,
   buildDomainContext,
   buildCompactContext,
-  selectRelevantDocs,
+  findRelevantDocs,
   buildSelectedContext,
   buildDocumentIndex,
   listDocuments,
@@ -120,15 +120,27 @@ export class ChatEngine {
       ? SYSTEM_PROMPT_COMPACT
       : SYSTEM_PROMPT;
 
+    const recentHistory = history
+      .slice(-4)
+      .filter((entry) => entry && typeof entry.content === "string" && entry.content.trim())
+      .map((entry) => ({ role: entry.role, content: entry.content.trim() }));
+
     // Select only the most relevant documents for this query
-    const relevant = selectRelevantDocs(
+    const { docs: relevant, matched, terms } = findRelevantDocs(
       userMessage,
       this.docs,
       config.maxContextDocs,
     );
     const context = this.compactMode
       ? buildCompactContext(relevant)
-      : buildSelectedContext(relevant);
+      : buildSelectedContext(relevant, userMessage, {
+          terms,
+          maxCharsPerDoc: 1600,
+          maxSections: 2,
+        });
+    const contextEnvelope = matched
+      ? `Relevant documents for this query:\n\n${context}`
+      : `Available documents:\n${this.docIndex}\n\nRelevant documents for this query:\n\n${context}`;
 
     console.log(
       `[ChatEngine] Query context: ${relevant.length} docs ` +
@@ -139,11 +151,9 @@ export class ChatEngine {
       { role: "system", content: systemPrompt },
       {
         role: "system",
-        content:
-          `Available documents:\n${this.docIndex}\n\n` +
-          `Relevant documents for this query:\n\n${context}`,
+        content: contextEnvelope,
       },
-      ...history,
+      ...recentHistory,
       { role: "user", content: userMessage },
     ];
   }

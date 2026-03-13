@@ -140,6 +140,10 @@ The prompt is sent to the locally loaded model via the Foundry Local SDK's nativ
 - Provides real-time download progress callbacks for UI integration
 - Works through the `foundry-local-sdk` npm package
 
+In this sample, **your application is responsible for deciding which model to use**, and it does that through the `foundry-local-sdk`. The app creates a `FoundryLocalManager`, asks the SDK for the local model catalogue, and then runs a small selection policy from `src/modelSelector.js`. That policy looks at the machine's available RAM, filters out models that are too large, ranks the remaining chat models by preference, and then returns the best fit for that device.
+
+**Why does it work this way?** Because shipping one fixed model would either exclude lower-spec machines or underuse more capable ones. A 14B model may be perfectly reasonable on a 32 GB workstation, but the same choice would be slow or unusable on an 8 GB laptop. By selecting at runtime, the same codebase can run across a wider range of developer machines without manual tuning.
+
 The integration code is minimal:
 
 ```js
@@ -173,6 +177,10 @@ const response = await chatClient.completeChat([
 ```
 
 This uses native bindings for in-process inference. There are no HTTP round-trips to a local server, which reduces latency and simplifies the architecture.
+
+The download step matters for a simple reason: offline inference only works once the model files exist locally. The SDK checks whether the chosen model is already cached on the machine. If it is not, the application asks Foundry Local to download it once, store it locally, and then load it into memory. After that first run, the cached model can be reused, which is why subsequent launches are much faster and can operate without any network dependency.
+
+Put another way, there are two cooperating pieces here. **Your application chooses** which model is appropriate for the device and the scenario. **Foundry Local and its SDK handle** the mechanics of making that model available locally, caching it, loading it, and exposing a chat client for inference. That separation keeps the application logic clear whilst letting the runtime handle the heavy lifting.
 
 ## Why CAG Instead of RAG?
 
@@ -300,6 +308,8 @@ FOUNDRY_MODEL=phi-3.5-mini npm start   # Force a smaller, faster model
 ```
 
 Smaller models give faster responses on constrained devices. Larger models give better quality. The auto-selector picks the largest model that fits within 60% of your system RAM.
+
+This is worth calling out because it is one of the most practical parts of the sample. Developers do not have to decide up front which single model every user should run. The application makes that decision at startup based on the hardware budget you set, then asks Foundry Local to fetch the model if it is missing. The result is a smoother first-run experience and fewer support headaches when the same app is used on mixed hardware.
 
 ### 4. Customise the UI
 

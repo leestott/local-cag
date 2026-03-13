@@ -150,26 +150,34 @@ app.get("*", (_req, res) => {
 async function start() {
   console.log("=== Gas Field CAG – Local Support Agent ===\n");
 
-  const server = app.listen(config.port, config.host, () => {
-    console.log(`[Server] Running at http://${config.host}:${config.port}`);
-    console.log("[Server] Fully offline – no outbound connections.");
-    console.log("[Server] Architecture: Context-Aware Generation (CAG)");
-    console.log("[Server] Initialising engine – open the browser to see progress...\n");
+  const server = await new Promise((resolve, reject) => {
+    const candidate = app.listen(config.port, config.host, () => {
+      console.log(`[Server] Running at http://${config.host}:${config.port}`);
+      console.log("[Server] Fully offline – no outbound connections.");
+      console.log("[Server] Architecture: Context-Aware Generation (CAG)");
+      console.log("[Server] Initialising engine – open the browser to see progress...\n");
+      resolve(candidate);
+    });
+
+    candidate.once("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        console.error(`[Server] Port ${config.port} is already in use.`);
+        console.error("[Server] Stop the other process or set a different PORT.");
+      } else {
+        console.error("[Server] Failed to start:", err.message);
+      }
+      reject(err);
+    });
   });
 
-  server.on("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-      console.error(`[Server] Port ${config.port} is already in use.`);
-      console.error("[Server] Stop the other process or set a different PORT.");
-    } else {
-      console.error("[Server] Failed to start:", err.message);
-    }
-    process.exit(1);
-  });
-
-  // Initialise engine AFTER the server is listening, broadcasting progress
-  await engine.init(broadcastStatus);
-  console.log("\n[Server] Engine ready – accepting requests.\n");
+  try {
+    // Initialise engine AFTER the server is confirmed listening, broadcasting progress
+    await engine.init(broadcastStatus);
+    console.log("\n[Server] Engine ready – accepting requests.\n");
+  } catch (err) {
+    server.close();
+    throw err;
+  }
 }
 
 start().catch((err) => {

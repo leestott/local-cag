@@ -10,6 +10,8 @@ import {
   parseFrontMatter,
   buildDomainContext,
   buildCompactContext,
+  selectRelevantDocs,
+  buildSelectedContext,
   listDocuments,
 } from "../src/context.js";
 
@@ -127,6 +129,46 @@ describe("buildCompactContext", () => {
     const full = buildDomainContext(sampleDocs);
     const compact = buildCompactContext(sampleDocs);
     assert.ok(compact.length <= full.length, "compact context should be shorter or equal");
+  });
+});
+
+describe("selectRelevantDocs", () => {
+  const sampleDocs = [
+    {
+      id: "DOC-SC-001",
+      title: "Emergency Shutdown",
+      category: "Safety & Compliance",
+      content: "## Procedure\n1. Activate ESD.\n2. Evacuate the area.",
+    },
+    {
+      id: "DOC-IP-001",
+      title: "Meter Installation",
+      category: "Equipment Manuals",
+      content: "## Procedure\n1. Isolate supply.\n2. Fit the meter.",
+    },
+  ];
+
+  it("prefers documents with matching title and content terms", () => {
+    const selected = selectRelevantDocs("shutdown procedure", sampleDocs, 1);
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0].id, "DOC-SC-001");
+  });
+});
+
+describe("buildSelectedContext", () => {
+  const sampleDocs = [
+    {
+      id: "DOC-SC-001",
+      title: "Emergency Shutdown",
+      category: "Safety & Compliance",
+      content: "# Emergency Shutdown\n\n## Safety Warning\nHigh pressure release possible.\n\n## Procedure\n1. Activate ESD.\n2. Evacuate the area.",
+    },
+  ];
+
+  it("focuses selected context on matching sections", () => {
+    const context = buildSelectedContext(sampleDocs, "pressure shutdown");
+    assert.ok(context.includes("Emergency Shutdown"));
+    assert.ok(context.includes("High pressure release possible"));
   });
 });
 
